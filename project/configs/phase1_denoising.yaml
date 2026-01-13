@@ -1,0 +1,66 @@
+# configs/phase1_denoising.yaml
+
+project:
+  name: "midm-finance-phase1-denoising"
+  output_dir: "./outputs/phase1"
+
+model:
+  name: "kt-ai/midm-12b"
+  max_seq_length: 4096  # 실용적인 메모리 사용
+  lora:
+    r: 64
+    alpha: 128
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+data:
+  ko_processed_path: "data/processed/ko_processed.jsonl"
+  en_processed_path: "data/processed/en_processed.jsonl"
+  bt_cache_dir: "data/bt_cache" # Not used in Phase 1 but required by code
+  
+  chunking:
+    conference_call: {window: 3, stride: 2}
+  
+  style_tags:
+    tags: {formal: "<|formal|>", casual: "<|casual|>"}
+    distribution: {formal: 0.5, casual: 0.3, none: 0.2}
+
+  # Noise for Denoising Task
+  noise:
+    total_ratio: 0.15 # Slightly higher for pure denoising
+    deletion_prob: 0.3
+    filler_prob: 0.2
+    infilling_prob: 0.4
+    shuffling_prob: 0.1
+    asr_error_prob: 0.05
+
+  protection:
+    number_window: 1 
+
+training:
+  batch_size: 4
+  gradient_accumulation: 8
+  learning_rate: 2e-4
+  steps: 5000 # Run for 5k steps to check adaptation
+  
+  # DISABLE Phase 2 (L_back)
+  lback_activation:
+    min_warmup_steps: 999999999
+    min_bleu: 999
+    loss_auto_decrease: 0.99
+  
+  loss:
+    dynamic_weights:
+      enabled: false # Use static for phase 1
+      min_alpha: 1.0 # Only L_auto
+      max_alpha: 1.0
+      
+  hard_example:
+    enabled: true
+    threshold_percentile: 0.2
+    buffer_size: 10000
+    batch_ratio: 0.2
+
+bt_generation: {vllm: {tensor_parallel_size: 1}} # Placeholder
+glossary: {enabled: true, path: "data/glossary.json"}
+fewshot: {enabled: true, train_prob: 0.3, num_examples: 3}

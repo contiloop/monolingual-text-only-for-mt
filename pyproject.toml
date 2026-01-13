@@ -1,0 +1,22 @@
+[project]
+name = "midm-financial-translation"
+version = "0.1.0"
+description = "Financial Domain Translation Model using MidM-12B"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.1.2",
+    "transformers>=4.36.0",
+    "peft>=0.7.0",
+    "vllm>=0.2.7",
+    "wandb>=0.16.0",
+    "pyyaml>=6.0",
+    "tqdm>=4.66.0",
+    "scipy",
+    "sentencepiece",
+    "datasets>=2.14.0",
+    "pandas"
+]
+
+[tool.uv]
+# Optional: Pin specific PyTorch index if needed (e.g. for CUDA version)
+# index-url = "https://download.pytorch.org/whl/cu118"

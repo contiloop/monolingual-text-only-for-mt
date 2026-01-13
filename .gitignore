@@ -3,35 +3,14 @@
 __pycache__/
 *.pyc
 
-# 대용량 데이터 (Git 제외)
-data/
-*.jsonl
+# 전처리 데이터 (대용량)
+/data/processed/*.jsonl
+/data/bt_cache/
 
-# HuggingFace 데이터셋 (Arrow 형식)
+# HuggingFace 데이터셋
 sp500_earnings_calls_dataset/
 earnings_calls_qa_dataset/
 korean_english_parallel_dataset/
-
-# 체크포인트
-outputs/
-*.pt
-*.bin
-*.safetensors
-
-# WandB
-wandb/
-
-# 시스템
-.DS_Store
-*.log
-# 가상환경
-.venv/
-__pycache__/
-*.pyc
-
-# 데이터 (Git LFS 또는 별도 전송)
-data/processed/*.jsonl
-data/bt_cache/
 
 # 체크포인트
 outputs/

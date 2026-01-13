@@ -1,0 +1,27 @@
+[
+    {
+        "category": "Conversation",
+        "prompt": "안녕하세요, 오늘 기분은 어떠신가요?",
+        "description": "Basic greeting check"
+    },
+    {
+        "category": "Instruction",
+        "prompt": "다음 문장을 세 줄로 요약해주세요:\n\n최근 연준의 금리 인상 결정은 글로벌 시장에 큰 파장을 불러일으켰습니다. 많은 전문가들은 이번 결정이 인플레이션을 잡기 위한 불가피한 선택이었다고 평가하지만, 일각에서는 경기 침체를 우려하는 목소리도 높습니다. 특히 신흥국 경제에 미칠 부정적인 영향에 대한 대비가 필요하다는 지적이 나오고 있습니다.",
+        "description": "Summarization instruction"
+    },
+    {
+        "category": "Economic Analysis",
+        "prompt": "금리가 상승하면 채권 가격은 어떻게 변동하나요? 그 이유도 함께 설명해주세요.",
+        "description": "Domain knowledge check"
+    },
+    {
+        "category": "Translation (Zero-shot)",
+        "prompt": "Translate the following to English:\n매출이 전년 동기 대비 10% 증가했습니다.",
+        "description": "Translation check without training"
+    },
+    {
+        "category": "Style Control (Casual)",
+        "prompt": "<|casual|> 이번 분기 실적은 기대 이상이었어.",
+        "description": "Style tag responsiveness"
+    }
+]

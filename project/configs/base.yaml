@@ -5,7 +5,7 @@ project:
   output_dir: "./outputs"
 
 model:
-  name: "kt-ai/midm-12b"
+  name: "K-intelligence/Midm-2.0-Base-Instruct"
   max_seq_length: 4096
   lora:
     r: 64

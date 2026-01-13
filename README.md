@@ -1,72 +1,82 @@
-# 금융 번역 모델 학습
+# 금융 번역 모델 (MidM Financial Translation)
 
-## 빠른 시작 (원격 서버)
+## 환경 설정
 
-### 1. 환경 설정
+### 1. uv 설치 (권장)
 ```bash
-# 코드 클론
-git clone <your-repo-url>
-cd project
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc  # 또는 터미널 재시작
+```
 
-# 가상환경 생성 (uv 권장)
-uv venv .venv && source .venv/bin/activate
+### 2. 가상환경 생성 및 의존성 설치
+```bash
+# 프로젝트 클론
+git clone https://github.com/contiloop/monolingual-text-only-for-mt.git
+cd monolingual-text-only-for-mt
+
+# 가상환경 생성
+uv venv .venv
+source .venv/bin/activate
 
 # 의존성 설치
-uv pip install torch transformers peft accelerate wandb datasets tqdm
+uv pip install -e .
+
+# 또는 개별 설치 (트러블슈팅용)
+uv pip install torch transformers peft accelerate huggingface_hub wandb datasets tqdm pyyaml
 ```
 
-### 2. 데이터 전송 (로컬 → 서버)
+### 3. 데이터 준비
 ```bash
-# 로컬에서 실행
-rsync -avz --progress \
-  data/processed/ \
-  user@server:/path/to/project/data/processed/
+# 로컬에서 전처리된 데이터를 서버로 전송
+mkdir -p data/processed
+# rsync 또는 scp로 ko_processed.jsonl, en_processed.jsonl 복사
 ```
 
-### 3. WandB 로그인
+### 4. WandB 설정
 ```bash
+export WANDB_API_KEY="your-api-key"
+# 또는
 wandb login
-# API 키 입력
 ```
 
-### 4. Accelerate 설정
-```bash
-accelerate config
-# 대화형으로 GPU 수, 분산 방식 선택
-```
+## 학습 실행
 
-### 5. 학습 실행
+### 단일 GPU
 ```bash
-# 단일 GPU
 python src/train.py --config configs/base.yaml
-
-# Multi-GPU (자동 분산)
-accelerate launch src/train.py --config configs/base.yaml
-
-# DeepSpeed ZeRO-2
-accelerate launch --use_deepspeed src/train.py --config configs/base.yaml
 ```
 
-## 주요 설정 (configs/base.yaml)
-
-| 설정 | 기본값 | 설명 |
-|------|--------|------|
-| `model.name` | kt-ai/midm-12b | HuggingFace 모델 |
-| `training.batch_size` | 4 | 배치 크기 |
-| `training.steps` | 50000 | 총 스텝 |
-| `model.lora.r` | 64 | LoRA rank |
-
-## 모니터링
-
+### Multi-GPU (A100 x4 등)
 ```bash
-# WandB 대시보드
-https://wandb.ai/<your-project>
-
-# GPU 사용량
-watch -n 1 nvidia-smi
+torchrun --nproc_per_node=4 src/train.py --config configs/base.yaml
 ```
 
-## 체크포인트
+### WandB 없이 테스트
+```bash
+WANDB_MODE=disabled torchrun --nproc_per_node=4 src/train.py --config configs/base.yaml
+```
 
-자동 저장: `outputs/ckpt_1000/`, `ckpt_2000/`...
-최종: `outputs/final/`
+## 프로젝트 구조
+```
+.
+├── configs/          # 학습 설정
+├── data/processed/   # 전처리 데이터 (Git 제외)
+├── scripts/          # 전처리 스크립트
+├── src/              # 학습 코드
+│   ├── data/         # DataLoader
+│   ├── bt/           # Back-Translation
+│   └── train.py      # 메인 학습
+└── pyproject.toml    # 의존성
+```
+
+## 트러블슈팅
+
+### `ModuleNotFoundError`
+```bash
+uv pip install --upgrade huggingface_hub peft accelerate
+```
+
+### `HFValidationError` 관련
+```bash
+uv pip install huggingface_hub>=0.20.0
+```

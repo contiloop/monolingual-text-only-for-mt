@@ -1,13 +1,14 @@
 [project]
 name = "midm-financial-translation"
 version = "0.1.0"
-description = "Financial Domain Translation Model using MidM-12B"
-requires-python = ">=3.10"
+description = "Financial Domain Translation Model using MidM"
+requires-python = ">=3.8"
 dependencies = [
-    "torch>=2.1.2",
+    "torch>=2.0.0",
     "transformers>=4.36.0",
     "peft>=0.7.0",
-    "vllm>=0.2.7",
+    "accelerate>=0.25.0",
+    "huggingface_hub>=0.20.0",
     "wandb>=0.16.0",
     "pyyaml>=6.0",
     "tqdm>=4.66.0",
@@ -17,6 +18,10 @@ dependencies = [
     "pandas"
 ]
 
+[project.optional-dependencies]
+dev = ["pytest", "black", "ruff"]
+vllm = ["vllm>=0.2.7"]
+
 [tool.uv]
-# Optional: Pin specific PyTorch index if needed (e.g. for CUDA version)
+# PyTorch CUDA 버전 맞추기 (필요시 주석 해제)
 # index-url = "https://download.pytorch.org/whl/cu118"

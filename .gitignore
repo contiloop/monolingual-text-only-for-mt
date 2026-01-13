@@ -24,3 +24,24 @@ wandb/
 # 시스템
 .DS_Store
 *.log
+# 가상환경
+.venv/
+__pycache__/
+*.pyc
+
+# 데이터 (Git LFS 또는 별도 전송)
+data/processed/*.jsonl
+data/bt_cache/
+
+# 체크포인트
+outputs/
+*.pt
+*.bin
+*.safetensors
+
+# WandB
+wandb/
+
+# 시스템
+.DS_Store
+*.log

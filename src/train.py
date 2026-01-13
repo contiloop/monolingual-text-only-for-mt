@@ -22,12 +22,12 @@ from accelerate.utils import set_seed
 import wandb
 from tqdm import tqdm
 
-# 프로젝트 루트 추가
+# 프로젝트 루트 (src의 부모 = 루트)
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
+sys.path.insert(0, str(PROJECT_ROOT))
 
-from data.dataloader import create_dataloader
-from data.prompt_builder import PromptBuilder
+from src.data.dataloader import create_dataloader
+from src.data.prompt_builder import PromptBuilder
 
 def load_config(path):
     with open(path) as f:

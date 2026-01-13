@@ -1,35 +1,37 @@
-# project/scripts/preprocess_all.py
+# scripts/preprocess_all.py
 """
-전처리 스크립트: Raw 데이터 → Processed JSONL (풍부한 메타데이터 포함)
+전처리 스크립트: Raw 데이터 → Processed JSONL
 """
 
 import sys
 from pathlib import Path
 
+# 프로젝트 루트 (scripts의 부모 = 루트)
 PROJECT_ROOT = Path(__file__).parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "src" / "data"))
+sys.path.insert(0, str(PROJECT_ROOT))
 
 import json
 from tqdm import tqdm
-from parsers import get_parser
+from src.data.parsers import get_parser
 
 # ============================================
 # 설정
 # ============================================
 
-BASE_DIR = PROJECT_ROOT.parent  # monolingual-text-only-for-MT
+# Raw 데이터는 외부 경로 (환경에 맞게 수정)
+RAW_DATA_DIR = Path.home() / "Desktop" / "raw_financial_data"  # 또는 환경변수
 
 RAW_DATA_MAP = {
     "ko": [
-        BASE_DIR / "data" / "hk.jsonl",
-        BASE_DIR / "data" / "mk.jsonl",
-        BASE_DIR / "data" / "naver.jsonl",
-        BASE_DIR / "data" / "korea-bank-700-cleaned.jsonl",
+        RAW_DATA_DIR / "hk.jsonl",
+        RAW_DATA_DIR / "mk.jsonl",
+        RAW_DATA_DIR / "naver.jsonl",
+        RAW_DATA_DIR / "korea-bank-700-cleaned.jsonl",
     ],
     "en": [
-        BASE_DIR / "data" / "reuter.jsonl",
-        BASE_DIR / "sp500_earnings_calls_dataset",
-        BASE_DIR / "earnings_calls_qa_dataset",
+        RAW_DATA_DIR / "reuter.jsonl",
+        RAW_DATA_DIR / "sp500_earnings_calls_dataset",
+        RAW_DATA_DIR / "earnings_calls_qa_dataset",
     ]
 }
 

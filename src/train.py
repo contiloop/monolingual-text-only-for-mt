@@ -38,14 +38,13 @@ class Trainer:
         self.config = config
         
         # ===== Accelerator 초기화 =====
-        # 자동으로 DDP/FSDP/DeepSpeed 감지
         self.accelerator = Accelerator(
             gradient_accumulation_steps=config['training']['gradient_accumulation'],
-            mixed_precision="bf16",  # bfloat16 사용
-            log_with="wandb" if self.is_main else None,
+            mixed_precision="bf16",
+            log_with="wandb",  # 메인 프로세스만 실제로 로깅함
         )
         
-        if self.is_main:
+        if self.accelerator.is_main_process:
             print(f"🌐 Accelerator: {self.accelerator.distributed_type}")
             print(f"   Device: {self.accelerator.device}")
             print(f"   Num processes: {self.accelerator.num_processes}")

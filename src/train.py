@@ -111,9 +111,9 @@ class Trainer:
             glossary_path=str(glossary_path)
         )
         
-        # ===== Accelerator로 준비 =====
-        self.model, self.optimizer, self.dataloader, self.scheduler = self.accelerator.prepare(
-            self.model, self.optimizer, self.dataloader, self.scheduler
+        # ===== Accelerator로 준비 (dataloader 제외 - 커스텀 CollatedBatch 사용) =====
+        self.model, self.optimizer, self.scheduler = self.accelerator.prepare(
+            self.model, self.optimizer, self.scheduler
         )
         
         # ===== PromptBuilder =====

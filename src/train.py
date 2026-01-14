@@ -288,11 +288,19 @@ class Trainer:
                 self.global_step += 1
                 pbar.update(1)
                 
+                # Gradient norm 계산
+                grad_norm = 0.0
+                for p in self.model.parameters():
+                    if p.grad is not None:
+                        grad_norm += p.grad.data.norm(2).item() ** 2
+                grad_norm = grad_norm ** 0.5
+                
                 if self.is_main:
                     log_dict = {
                         "loss": loss.item(),
                         "lr": self.scheduler.get_last_lr()[0],
                         "step": self.global_step,
+                        "gradient_norm": grad_norm,
                         **loss_dict
                     }
                     wandb.log(log_dict)
@@ -424,7 +432,16 @@ class Trainer:
         
         if self.is_main:
             print(f"\n📊 Validation Loss: {avg_val_loss:.4f}")
-            wandb.log({"val_loss": avg_val_loss, "step": self.global_step})
+            
+            eval_log = {"val_loss": avg_val_loss, "step": self.global_step}
+            
+            # BLEU 평가 (병렬 코퍼스 있으면)
+            bleu_score = self._evaluate_translation_bleu(num_samples=20)
+            if bleu_score is not None:
+                eval_log["bleu_ko_to_en"] = bleu_score
+                print(f"🌐 Translation BLEU (ko→en): {bleu_score:.2f}")
+            
+            wandb.log(eval_log)
             
             # Qualitative: 3개 샘플 denoising 결과 출력
             print("📝 Qualitative Samples:")
@@ -437,6 +454,67 @@ class Trainer:
         
         self.model.train()
         return avg_val_loss
+    
+    def _evaluate_translation_bleu(self, num_samples: int = 20) -> float:
+        """병렬 코퍼스로 번역 BLEU 계산 (ko→en)"""
+        try:
+            from datasets import load_from_disk
+            import sacrebleu
+        except ImportError:
+            return None
+        
+        # 병렬 코퍼스 로드
+        parallel_path = PROJECT_ROOT / "data/eval/korean_english_parallel"
+        if not parallel_path.exists():
+            return None
+        
+        try:
+            dataset = load_from_disk(str(parallel_path))
+            if hasattr(dataset, 'shuffle'):
+                samples = dataset.shuffle(seed=42).select(range(min(num_samples, len(dataset))))
+            else:
+                samples = dataset['train'].shuffle(seed=42).select(range(min(num_samples, len(dataset['train']))))
+        except Exception:
+            return None
+        
+        device = self.accelerator.device
+        predictions = []
+        references = []
+        
+        for item in samples:
+            ko_text = item.get('korean', '')
+            en_ref = item.get('english', '')
+            
+            if not ko_text or not en_ref:
+                continue
+            
+            # 번역 (간단한 생성)
+            prompt = f"Translate to English: {ko_text[:500]}"
+            inputs = self.tokenizer(prompt, return_tensors='pt', truncation=True, max_length=512)
+            inputs = {k: v.to(device) for k, v in inputs.items()}
+            
+            with torch.no_grad():
+                outputs = self.model.generate(
+                    **inputs,
+                    max_new_tokens=256,
+                    do_sample=False,
+                    pad_token_id=self.tokenizer.pad_token_id
+                )
+            
+            generated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+            # 프롬프트 제거
+            if "Translate to English:" in generated:
+                generated = generated.split("Translate to English:")[-1].strip()
+            
+            predictions.append(generated[:500])
+            references.append(en_ref[:500])
+        
+        if not predictions:
+            return None
+        
+        # BLEU 계산
+        bleu = sacrebleu.corpus_bleu(predictions, [references])
+        return bleu.score
 
 
 if __name__ == "__main__":

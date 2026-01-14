@@ -16,6 +16,7 @@ dependencies = [
     "scipy",
     "sentencepiece",
     "datasets>=2.14.0",
+    "sacrebleu",
     "pandas"
 ]
 

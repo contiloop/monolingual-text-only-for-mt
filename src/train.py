@@ -137,13 +137,14 @@ class Trainer:
         """L_auto와 L_back Loss 계산"""
         total_loss = 0.0
         loss_dict = {}
+        device = self.accelerator.device
         
         # ===== L_auto (Denoising) =====
         if batch.has_auto and batch.auto_input_ids is not None:
             outputs = self.model(
-                input_ids=batch.auto_input_ids,
-                attention_mask=batch.auto_attention_mask,
-                labels=batch.auto_labels
+                input_ids=batch.auto_input_ids.to(device),
+                attention_mask=batch.auto_attention_mask.to(device),
+                labels=batch.auto_labels.to(device)
             )
             l_auto = outputs.loss
             total_loss += l_auto
@@ -152,9 +153,9 @@ class Trainer:
         # ===== L_back (Translation) =====
         if batch.has_back and batch.back_input_ids is not None and self.lback_active:
             outputs = self.model(
-                input_ids=batch.back_input_ids,
-                attention_mask=batch.back_attention_mask,
-                labels=batch.back_labels
+                input_ids=batch.back_input_ids.to(device),
+                attention_mask=batch.back_attention_mask.to(device),
+                labels=batch.back_labels.to(device)
             )
             l_back = outputs.loss
             

@@ -14,7 +14,7 @@ import yaml
 import argparse
 from pathlib import Path
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import LambdaLR  # get_cosine_schedule_with_warmup uses this internally
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_kbit_training
 from accelerate import Accelerator
@@ -134,13 +134,25 @@ class Trainer:
         if self.is_main:
             self.model.print_trainable_parameters()
         
-        # ===== Optimizer & Scheduler =====
+        # ===== Optimizer & Scheduler (with warmup) =====
         self.optimizer = AdamW(
             self.model.parameters(), 
             lr=float(config['training']['learning_rate'])
         )
         total_steps = config['training']['steps']
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=total_steps)
+        warmup_ratio = config['training'].get('warmup_ratio', 0.05)
+        warmup_steps = int(total_steps * warmup_ratio)
+        
+        # Warmup + Cosine Decay
+        from transformers import get_cosine_schedule_with_warmup
+        self.scheduler = get_cosine_schedule_with_warmup(
+            self.optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_steps
+        )
+        
+        if self.is_main:
+            print(f"📈 LR Schedule: warmup {warmup_steps} steps → cosine decay")
         
         # ===== DataLoader =====
         if self.is_main:

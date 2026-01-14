@@ -56,7 +56,12 @@ training:
   gradient_accumulation: 32  # 8 → 32 (effective batch = 32)
   learning_rate: 2e-4
   steps: 50000
-  warmup_ratio: 0.05
+  warmup_ratio: 0.05  # 5% warmup → 2500 steps
+  
+  # 언어 샘플링 비율 (ko:en)
+  language_ratio:
+    ko: 0.5
+    en: 0.5
   
   lback_activation:
     min_warmup_steps: 5000

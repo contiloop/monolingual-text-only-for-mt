@@ -8,6 +8,7 @@ dependencies = [
     "transformers>=4.36.0",
     "peft>=0.7.0",
     "accelerate>=0.25.0",
+    "bitsandbytes>=0.41.0",
     "huggingface_hub>=0.20.0",
     "wandb>=0.16.0",
     "pyyaml>=6.0",

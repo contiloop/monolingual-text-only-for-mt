@@ -24,3 +24,4 @@ wandb/
 # 시스템
 .DS_Store
 *.log
+data/processed/processed_data.tar.gz

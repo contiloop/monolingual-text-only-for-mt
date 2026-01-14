@@ -16,7 +16,7 @@ from pathlib import Path
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-from peft import get_peft_model, LoraConfig, TaskType
+from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_kbit_training
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 import wandb
@@ -110,6 +110,11 @@ class Trainer:
         self.model.resize_token_embeddings(len(self.tokenizer))
         
         # ===== LoRA =====
+        # 4-bit/8-bit 모델은 gradient 준비 필요
+        quant_config = config.get('model', {}).get('quantization', {})
+        if quant_config.get('load_in_4bit') or quant_config.get('load_in_8bit'):
+            self.model = prepare_model_for_kbit_training(self.model)
+        
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,
             r=config['model']['lora']['r'],

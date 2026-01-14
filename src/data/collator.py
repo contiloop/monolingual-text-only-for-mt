@@ -101,47 +101,47 @@ class TranslationCollator:
             result.has_auto = True
             auto_inputs, auto_targets = zip(*auto_samples)
             
-            input_enc = self.tokenizer(
-                list(auto_inputs),
-                padding=True,
-                truncation=True,
-                max_length=self.max_length,
-                return_tensors='pt'
-            )
-            target_enc = self.tokenizer(
-                list(auto_targets),
+            # Causal LM: "noisy_input → original_target" 형식으로 연결
+            # 포맷: [noisy] [SEP] [target]
+            combined_texts = [
+                f"{inp} {self.tokenizer.eos_token} {tgt}"
+                for inp, tgt in zip(auto_inputs, auto_targets)
+            ]
+            
+            enc = self.tokenizer(
+                combined_texts,
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
                 return_tensors='pt'
             )
             
-            result.auto_input_ids = input_enc.input_ids
-            result.auto_attention_mask = input_enc.attention_mask
-            result.auto_labels = target_enc.input_ids
+            result.auto_input_ids = enc.input_ids
+            result.auto_attention_mask = enc.attention_mask
+            # Labels = input_ids 복사 (Causal LM 표준)
+            result.auto_labels = enc.input_ids.clone()
         
         if back_samples:
             result.has_back = True
             back_inputs, back_targets = zip(*back_samples)
             
-            input_enc = self.tokenizer(
-                list(back_inputs),
-                padding=True,
-                truncation=True,
-                max_length=self.max_length,
-                return_tensors='pt'
-            )
-            target_enc = self.tokenizer(
-                list(back_targets),
+            # 같은 방식으로 연결
+            combined_texts = [
+                f"{inp} {self.tokenizer.eos_token} {tgt}"
+                for inp, tgt in zip(back_inputs, back_targets)
+            ]
+            
+            enc = self.tokenizer(
+                combined_texts,
                 padding=True,
                 truncation=True,
                 max_length=self.max_length,
                 return_tensors='pt'
             )
             
-            result.back_input_ids = input_enc.input_ids
-            result.back_attention_mask = input_enc.attention_mask
-            result.back_labels = target_enc.input_ids
+            result.back_input_ids = enc.input_ids
+            result.back_attention_mask = enc.attention_mask
+            result.back_labels = enc.input_ids.clone()
         
         return result
     

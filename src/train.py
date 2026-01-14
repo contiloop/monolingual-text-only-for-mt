@@ -15,7 +15,7 @@ import argparse
 from pathlib import Path
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import get_peft_model, LoraConfig, TaskType
 from accelerate import Accelerator
 from accelerate.utils import set_seed
@@ -64,10 +64,16 @@ class Trainer:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        # device_map="auto" 제거 - Accelerate가 처리
+        # 8-bit 양자화 설정 (A100 44GB 최적화)
+        bnb_config = BitsAndBytesConfig(
+            load_in_8bit=True,
+            llm_int8_threshold=6.0
+        )
+        
         self.model = AutoModelForCausalLM.from_pretrained(
             config['model']['name'],
-            dtype=torch.bfloat16,
+            quantization_config=bnb_config,
+            device_map="auto",
             trust_remote_code=True
         )
         

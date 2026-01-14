@@ -6,7 +6,7 @@ project:
 
 model:
   name: "K-intelligence/Midm-2.0-Base-Instruct"
-  max_seq_length: 1024  # 4096 → 1024 (메모리 절약)
+  max_seq_length: 2048  # 메모리와 품질 균형
   lora:
     r: 64
     alpha: 128

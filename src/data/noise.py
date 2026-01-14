@@ -2,7 +2,7 @@
 
 import random
 import re
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Dict
 from dataclasses import dataclass
 
 @dataclass
@@ -142,3 +142,19 @@ class NoiseApplier:
             # 문장 종결자 기준 스플릿은 복잡하므로 여기선 토큰 단위 셔플은 지양하고 패스 (혹은 n-gram 셔플)
              return tokens # Placeholder
         return tokens
+    
+    def update_config(self, progress: float, curriculum: Dict = None):
+        """커리큘럼에 따라 노이즈 설정 업데이트"""
+        if curriculum is None:
+            return
+        
+        # 진행률에 따라 노이즈 비율 조정
+        # 예: 학습 초기에는 낮은 노이즈, 후반에는 높은 노이즈
+        if 'total_ratio' in curriculum:
+            self.config.total_ratio = curriculum['total_ratio']
+        
+        # 커리큘럼 스케줄 적용
+        for schedule in curriculum.get('schedule', []):
+            if progress >= schedule.get('progress', 0):
+                if 'total_ratio' in schedule:
+                    self.config.total_ratio = schedule['total_ratio']

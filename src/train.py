@@ -67,7 +67,7 @@ class Trainer:
         # device_map="auto" 제거 - Accelerate가 처리
         self.model = AutoModelForCausalLM.from_pretrained(
             config['model']['name'],
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
             trust_remote_code=True
         )
         

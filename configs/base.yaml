@@ -12,6 +12,11 @@ model:
     alpha: 128
     dropout: 0.05
     target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+  
+  # Quantization (A100 40-44GB 기본값: 4-bit)
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_quant_type: "nf4"
 
 # ===== Chunking =====
 chunking:

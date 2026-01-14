@@ -1,0 +1,13 @@
+# configs/gpu_8bit.yaml
+# 사용: A100 80GB 등 (중간 메모리)
+
+_base_: base.yaml
+
+model:
+  max_seq_length: 2048
+  quantization:
+    load_in_8bit: true
+
+training:
+  batch_size: 4
+  gradient_accumulation: 8

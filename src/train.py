@@ -64,17 +64,46 @@ class Trainer:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        # 8-bit 양자화 설정 (A100 44GB 최적화)
-        bnb_config = BitsAndBytesConfig(
-            load_in_8bit=True,
-            llm_int8_threshold=6.0
-        )
+        # Quantization 설정 (config에서 읽기)
+        quant_config = config.get('model', {}).get('quantization', {})
+        bnb_config = None
+        
+        if quant_config.get('load_in_4bit', False):
+            # 4-bit QLoRA
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_quant_type=quant_config.get('bnb_4bit_quant_type', 'nf4'),
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True
+            )
+            if self.is_main:
+                print("🔧 Using 4-bit quantization (QLoRA)")
+        elif quant_config.get('load_in_8bit', False):
+            # 8-bit
+            bnb_config = BitsAndBytesConfig(
+                load_in_8bit=True,
+                llm_int8_threshold=6.0
+            )
+            if self.is_main:
+                print("🔧 Using 8-bit quantization")
+        else:
+            # Full precision
+            if self.is_main:
+                print("🔧 Using full precision (bf16)")
+        
+        # 모델 로드
+        model_kwargs = {
+            'trust_remote_code': True,
+            'device_map': 'auto'
+        }
+        if bnb_config:
+            model_kwargs['quantization_config'] = bnb_config
+        else:
+            model_kwargs['torch_dtype'] = torch.bfloat16
         
         self.model = AutoModelForCausalLM.from_pretrained(
             config['model']['name'],
-            quantization_config=bnb_config,
-            device_map="auto",
-            trust_remote_code=True
+            **model_kwargs
         )
         
         # Embedding 리사이즈

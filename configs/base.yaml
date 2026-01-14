@@ -6,7 +6,7 @@ project:
 
 model:
   name: "K-intelligence/Midm-2.0-Base-Instruct"
-  max_seq_length: 4096
+  max_seq_length: 1024  # 4096 → 1024 (메모리 절약)
   lora:
     r: 64
     alpha: 128
@@ -47,8 +47,8 @@ instruction:
 
 # ===== Training =====
 training:
-  batch_size: 4
-  gradient_accumulation: 8
+  batch_size: 1  # 4 → 1 (메모리 절약)
+  gradient_accumulation: 32  # 8 → 32 (effective batch = 32)
   learning_rate: 2e-4
   steps: 50000
   warmup_ratio: 0.05

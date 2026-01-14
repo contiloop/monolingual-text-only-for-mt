@@ -57,6 +57,7 @@ training:
   learning_rate: 2e-4
   steps: 50000
   warmup_ratio: 0.05  # 5% warmup → 2500 steps
+  eval_interval: 500  # Validation 주기
   
   # 언어 샘플링 비율 (ko:en)
   language_ratio:

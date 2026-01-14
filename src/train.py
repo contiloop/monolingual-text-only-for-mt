@@ -298,6 +298,11 @@ class Trainer:
                     wandb.log(log_dict)
                     pbar.set_postfix(loss=f"{loss.item():.4f}")
             
+            # ===== Periodic Evaluation =====
+            eval_interval = self.config['training'].get('eval_interval', 500)
+            if self.global_step % eval_interval == 0 and self.global_step > 0:
+                self._evaluate(num_samples=100)
+            
             # ===== Periodic BT Generation =====
             if self.lback_active and self.global_step % 5000 == 0:
                 self._run_offline_bt()
@@ -370,6 +375,68 @@ class Trainer:
         
         print(f"💾 Saved: {ckpt_path}")
         return str(ckpt_path)
+    
+    def _evaluate(self, num_samples: int = 100):
+        """Validation loss 계산 및 qualitative evaluation"""
+        self.model.eval()
+        val_losses = []
+        
+        # Validation pool에서 샘플링
+        val_pool = self.dataset.pool.val_pool
+        if not val_pool:
+            self.model.train()
+            return
+        
+        # 샘플 수 제한
+        import random
+        samples = random.sample(val_pool, min(num_samples, len(val_pool)))
+        
+        device = self.accelerator.device
+        
+        with torch.no_grad():
+            for sample in samples:
+                # 노이즈 적용
+                noisy_text, _ = self.dataset.collator.noise_applier.apply(
+                    sample.text, sample.language, sample.style_tag
+                )
+                
+                # 토크나이징
+                combined = f"{noisy_text} {self.tokenizer.eos_token} {sample.text}"
+                enc = self.tokenizer(
+                    combined,
+                    truncation=True,
+                    max_length=self.config['model']['max_seq_length'],
+                    return_tensors='pt'
+                )
+                
+                input_ids = enc.input_ids.to(device)
+                attention_mask = enc.attention_mask.to(device)
+                labels = input_ids.clone()
+                
+                outputs = self.model(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    labels=labels
+                )
+                val_losses.append(outputs.loss.item())
+        
+        avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0
+        
+        if self.is_main:
+            print(f"\n📊 Validation Loss: {avg_val_loss:.4f}")
+            wandb.log({"val_loss": avg_val_loss, "step": self.global_step})
+            
+            # Qualitative: 3개 샘플 denoising 결과 출력
+            print("📝 Qualitative Samples:")
+            for i, sample in enumerate(samples[:3]):
+                noisy, _ = self.dataset.collator.noise_applier.apply(
+                    sample.text[:200], sample.language, sample.style_tag
+                )
+                print(f"  [{i+1}] Noisy: {noisy[:100]}...")
+                print(f"      Original: {sample.text[:100]}...")
+        
+        self.model.train()
+        return avg_val_loss
 
 
 if __name__ == "__main__":

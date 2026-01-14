@@ -146,9 +146,10 @@ class Trainer:
             glossary_path=str(glossary_path)
         )
         
-        # ===== Accelerator로 준비 (dataloader 제외 - 커스텀 CollatedBatch 사용) =====
-        self.model, self.optimizer, self.scheduler = self.accelerator.prepare(
-            self.model, self.optimizer, self.scheduler
+        # ===== Accelerator로 준비 =====
+        # 양자화 모델은 device_map="auto"로 이미 GPU에 있으므로 model 제외
+        self.optimizer, self.scheduler = self.accelerator.prepare(
+            self.optimizer, self.scheduler
         )
         
         # ===== PromptBuilder =====

@@ -109,11 +109,18 @@ class Trainer:
         # Embedding 리사이즈
         self.model.resize_token_embeddings(len(self.tokenizer))
         
+        # gradient checkpointing과 호환을 위해 use_cache 비활성화
+        self.model.config.use_cache = False
+        
         # ===== LoRA =====
         # 4-bit/8-bit 모델은 gradient 준비 필요
         quant_config = config.get('model', {}).get('quantization', {})
         if quant_config.get('load_in_4bit') or quant_config.get('load_in_8bit'):
-            self.model = prepare_model_for_kbit_training(self.model)
+            self.model = prepare_model_for_kbit_training(
+                self.model, 
+                use_gradient_checkpointing=True,
+                gradient_checkpointing_kwargs={"use_reentrant": False}
+            )
         
         lora_config = LoraConfig(
             task_type=TaskType.CAUSAL_LM,

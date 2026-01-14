@@ -271,19 +271,20 @@ class Trainer:
                     step=self.global_step
                 )
             
-            # ===== Logging (메인만) =====
-            if self.is_main:
-                log_dict = {
-                    "loss": loss.item(),
-                    "lr": self.scheduler.get_last_lr()[0],
-                    "step": self.global_step,
-                    **loss_dict
-                }
-                wandb.log(log_dict)
-                pbar.set_postfix(loss=f"{loss.item():.4f}")
-            
-            pbar.update(1)
-            self.global_step += 1
+            # ===== Logging & Step Update (only on actual optimizer step) =====
+            if self.accelerator.sync_gradients:
+                self.global_step += 1
+                pbar.update(1)
+                
+                if self.is_main:
+                    log_dict = {
+                        "loss": loss.item(),
+                        "lr": self.scheduler.get_last_lr()[0],
+                        "step": self.global_step,
+                        **loss_dict
+                    }
+                    wandb.log(log_dict)
+                    pbar.set_postfix(loss=f"{loss.item():.4f}")
             
             # ===== Periodic BT Generation =====
             if self.lback_active and self.global_step % 5000 == 0:

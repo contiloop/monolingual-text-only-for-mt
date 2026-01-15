@@ -316,7 +316,7 @@ class Trainer:
                 self._run_offline_bt()
             
             # ===== Checkpoint =====
-            if self.global_step % 1000 == 0:
+            if self.global_step % 1000 == 0 and self.global_step > 0:
                 self._save_checkpoint()
         
         pbar.close()

@@ -25,3 +25,4 @@ wandb/
 .DS_Store
 *.log
 data/processed/processed_data.tar.gz
+data/processed/processed_data.tar.gz

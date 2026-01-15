@@ -246,6 +246,14 @@ class Trainer:
         self.model.train()
         accumulation_step = 0
         
+        # Early stopping 상태
+        early_stop_config = self.config['training'].get('early_stopping', {})
+        early_stop_enabled = early_stop_config.get('enabled', False)
+        patience = early_stop_config.get('patience', 5)
+        min_delta = early_stop_config.get('min_delta', 0.01)
+        best_val_loss = float('inf')
+        patience_counter = 0
+        
         while self.global_step < total_steps:
             try:
                 batch = next(data_iter)
@@ -320,7 +328,23 @@ class Trainer:
             # ===== Periodic Evaluation =====
             eval_interval = self.config['training'].get('eval_interval', 500)
             if self.global_step % eval_interval == 0 and self.global_step > 0:
-                self._evaluate(num_samples=100)
+                val_loss = self._evaluate(num_samples=100)
+                
+                # Early Stopping 체크
+                if early_stop_enabled and val_loss is not None:
+                    if val_loss < best_val_loss - min_delta:
+                        best_val_loss = val_loss
+                        patience_counter = 0
+                        if self.is_main:
+                            print(f"✅ Val loss improved to {val_loss:.4f}")
+                    else:
+                        patience_counter += 1
+                        if self.is_main:
+                            print(f"⚠️ No improvement ({patience_counter}/{patience})")
+                        if patience_counter >= patience:
+                            if self.is_main:
+                                print(f"🛑 Early stopping at step {self.global_step}!")
+                            break
             
             # ===== Periodic BT Generation =====
             if self.lback_active and self.global_step % 5000 == 0:

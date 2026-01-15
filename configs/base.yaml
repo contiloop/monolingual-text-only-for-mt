@@ -58,6 +58,11 @@ training:
   steps: 50000
   warmup_ratio: 0.05  # 5% warmup → 2500 steps
   eval_interval: 500  # Validation 주기
+  
+  early_stopping:
+    enabled: true
+    patience: 5      # N번 연속 개선 없으면 중단
+    min_delta: 0.01  # 최소 개선폭
 
 # ===== Sampling Strategy =====
 sampling:

@@ -94,12 +94,16 @@ class Trainer:
         # 모델 로드
         model_kwargs = {
             'trust_remote_code': True,
-            'device_map': 'auto'
+            'device_map': 'auto',
+            'attn_implementation': 'flash_attention_2'  # Flash Attention 2 추가!
         }
         if bnb_config:
             model_kwargs['quantization_config'] = bnb_config
         else:
             model_kwargs['torch_dtype'] = torch.bfloat16
+        
+        if self.is_main:
+            print("⚡ Using Flash Attention 2")
         
         self.model = AutoModelForCausalLM.from_pretrained(
             config['model']['name'],

@@ -20,17 +20,20 @@ python src/train.py --config configs/base.yaml
 
 ## 데이터 준비
 
-### 1. 학습 데이터 (Monolingual)
-```
-data/processed/
-├── ko_processed.jsonl   # 한국어 (earnings calls, 금융 뉴스)
-└── en_processed.jsonl   # 영어 (earnings calls, 금융 뉴스)
-```
+### 1. 학습 데이터 (Monolingual) 전송
 
 **로컬에서 압축:**
 ```bash
 cd /path/to/local/data/processed
 tar -czvf processed_data.tar.gz *.jsonl
+```
+
+**서버로 전송:**
+```bash
+# SSH (Vast.AI 등)
+scp -P [포트] processed_data.tar.gz root@[IP]:/workspace/monolingual-text-only-for-mt/data/processed/
+
+# 또는 Jupyter UI에서 Upload
 ```
 
 **서버에서 압축 해제:**
@@ -39,34 +42,43 @@ cd /workspace/monolingual-text-only-for-mt/data/processed
 tar -xzvf processed_data.tar.gz
 ```
 
-### 2. 평가 데이터 (Parallel Corpus)
-```
-data/eval/
-└── korean_english_parallel/   # Wiki 한영 병렬 코퍼스
-    └── train/
-        └── *.arrow            # HuggingFace datasets 포맷
+### 2. 평가용 병렬 코퍼스 다운로드
+
+**서버에서 직접 다운로드 (권장):**
+```bash
+pip install datasets
+python -c "
+from datasets import load_dataset
+ds = load_dataset('lemon-mint/korean_english_parallel_wiki_augmented_v1')
+ds.save_to_disk('data/eval/korean_english_parallel')
+print('✅ 다운로드 완료!')
+"
 ```
 
-**소스:** `lemon-mint/korean_english_parallel_wiki_augmented_v1`
+**로컬에서 전송하려면:**
+```bash
+# 로컬
+tar -czvf parallel_corpus.tar.gz korean_english_parallel_dataset/
 
-**용도:**
-- 번역 품질 평가 (BLEU)
-- Cycle consistency 테스트 (ko→en→ko)
-- 학습에는 **사용 안 함** (Unsupervised learning)
+# 서버
+cd /workspace/monolingual-text-only-for-mt/data/eval
+tar -xzvf parallel_corpus.tar.gz
+mv korean_english_parallel_dataset korean_english_parallel
+```
 
 ---
 
 ## GPU별 설정
 
 ```bash
-# A100 40-44GB (기본값 - 4bit QLoRA)
+# RTX 4080/4090 16GB (4-bit QLoRA)
 python src/train.py --config configs/base.yaml
 
-# A100 80GB (8bit)
+# A100 40-80GB (8-bit)
 python src/train.py --config configs/gpu_8bit.yaml
 
-# H100 / Multi-GPU (Full bf16)
-python src/train.py --config configs/gpu_full.yaml
+# Multi-GPU
+torchrun --nproc_per_node=2 src/train.py --config configs/base.yaml
 ```
 
 ---
@@ -75,30 +87,9 @@ python src/train.py --config configs/gpu_full.yaml
 ```
 .
 ├── configs/              # 학습 설정
-│   ├── base.yaml         # 기본 (4-bit QLoRA)
-│   ├── gpu_8bit.yaml     # 8-bit
-│   └── gpu_full.yaml     # Full precision
 ├── data/
-│   ├── processed/        # 전처리된 학습 데이터
+│   ├── processed/        # 학습 데이터 (ko/en_processed.jsonl)
 │   └── eval/             # 평가용 병렬 코퍼스
 ├── src/                  # 학습 코드
-└── outputs/              # 체크포인트 저장
-```
-
----
-
-## 트러블슈팅
-
-### CUDA OOM
-```yaml
-# configs/base.yaml에서 조정
-training:
-  batch_size: 1
-model:
-  max_seq_length: 1024
-```
-
-### ModuleNotFoundError
-```bash
-uv pip install -e .
+└── outputs/              # 체크포인트
 ```

@@ -270,6 +270,13 @@ class Trainer:
             
             # Gradient accumulation 완료 시 optimizer step
             if accumulation_step >= self.config['training']['gradient_accumulation']:
+                # Gradient norm 계산 (clip 전)
+                grad_norm = 0.0
+                for p in self.model.parameters():
+                    if p.grad is not None:
+                        grad_norm += p.grad.data.norm(2).item() ** 2
+                grad_norm = grad_norm ** 0.5
+                
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
                 self.optimizer.step()
                 self.scheduler.step()
@@ -278,6 +285,7 @@ class Trainer:
                 should_log = True
             else:
                 should_log = False
+                grad_norm = 0.0
             
             # ===== Hard Example Mining =====
             if 'l_auto' in loss_dict and loss_dict['l_auto'] > self._get_hard_threshold():
@@ -294,18 +302,16 @@ class Trainer:
                 self.global_step += 1
                 pbar.update(1)
                 
-                # Gradient norm 계산 (optimizer step 전에는 0이므로 패스)
-                grad_norm = 0.0
-                
                 if self.is_main:
                     log_dict = {
                         "loss": loss.item() * self.config['training']['gradient_accumulation'],  # 원래 loss 복원
                         "lr": self.scheduler.get_last_lr()[0],
                         "step": self.global_step,
+                        "gradient_norm": grad_norm,
                         **loss_dict
                     }
                     wandb.log(log_dict)
-                    pbar.set_postfix(loss=f"{log_dict['loss']:.4f}")
+                    pbar.set_postfix(loss=f"{log_dict['loss']:.4f}", grad=f"{grad_norm:.2f}")
             
             # ===== Periodic Evaluation =====
             eval_interval = self.config['training'].get('eval_interval', 500)

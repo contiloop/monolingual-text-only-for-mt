@@ -58,11 +58,16 @@ training:
   steps: 50000
   warmup_ratio: 0.05  # 5% warmup → 2500 steps
   eval_interval: 500  # Validation 주기
-  
-  # 언어 샘플링 비율 (ko:en)
-  language_ratio:
-    ko: 0.5
-    en: 0.5
+
+# ===== Sampling Strategy =====
+sampling:
+  strategy: "balanced"  # balanced, weighted
+  balanced:
+    ko_ratio: 0.5
+    en_ratio: 0.5
+  weighted:
+    ko_weight: 2.0  # Upsample Korean (underrepresented)
+    en_weight: 1.0
   
   lback_activation:
     min_warmup_steps: 5000

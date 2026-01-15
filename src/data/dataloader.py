@@ -140,12 +140,17 @@ def create_dataloader(
         loss_percentile=buffer_config.get('hard_percentile', 0.2)
     )
     
-    # 3. Composer
+    # 3. Sampler (새로 추가)
+    from .sampling import create_sampler
+    sampler = create_sampler(config, pool)
+    
+    # 4. Composer
     composition_config = config.get('composition', {})
     composer = BatchComposer(
         pool=pool,
         pseudo_buffer=pseudo_buffer,
         hard_buffer=hard_buffer,
+        sampler=sampler,  # 새로 추가
         config=composition_config
     )
     

@@ -38,7 +38,7 @@ class BatchComposer:
     """
     역할:
     - 배치 구성 비율 관리 (Normal/Pseudo/Hard)
-    - 언어 균형 (Ko:En = 1:1)
+    - 언어 균형 (Sampler 사용)
     - 스타일 분포 관리
     """
     
@@ -47,11 +47,13 @@ class BatchComposer:
         pool: DataPoolManager,
         pseudo_buffer: PseudoBuffer,
         hard_buffer: HardExampleBuffer,
+        sampler=None,  # 새로 추가
         config: Dict = None
     ):
         self.pool = pool
         self.pseudo_buffer = pseudo_buffer
         self.hard_buffer = hard_buffer
+        self.sampler = sampler  # 새로 추가
         
         config = config or {}
         
@@ -120,7 +122,11 @@ class BatchComposer:
     
     def _compose_normal(self) -> ComposedSample:
         """Normal 데이터 구성"""
-        sample = self.pool.sample_balanced(self.style_dist)
+        # Sampler 사용 (있으면)
+        if self.sampler:
+            sample = self.sampler.sample()
+        else:
+            sample = self.pool.sample_balanced(self.style_dist)
         
         return ComposedSample(
             source_type=SourceType.NORMAL,

@@ -4,7 +4,7 @@ __pycache__/
 *.pyc
 
 # 전처리 데이터 (대용량)
-/data/processed/*.jsonl
+/data/processed/
 /data/bt_cache/
 
 # HuggingFace 데이터셋
@@ -24,5 +24,3 @@ wandb/
 # 시스템
 .DS_Store
 *.log
-data/processed/processed_data.tar.gz
-data/processed/processed_data.tar.gz

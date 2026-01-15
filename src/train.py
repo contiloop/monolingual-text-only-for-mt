@@ -240,6 +240,7 @@ class Trainer:
         data_iter = iter(self.dataloader)
         
         self.model.train()
+        accumulation_step = 0
         
         while self.global_step < total_steps:
             try:
@@ -259,19 +260,24 @@ class Trainer:
                     print(f"\n🚀 L_back Activated at step {self.global_step}!")
                 self._run_offline_bt()
             
-            # ===== Forward & Backward (with gradient accumulation) =====
-            with self.accelerator.accumulate(self.model):
-                loss, loss_dict = self.compute_loss(batch)
-                
-                # Accelerate backward
-                self.accelerator.backward(loss)
-                
-                if self.accelerator.sync_gradients:
-                    self.accelerator.clip_grad_norm_(self.model.parameters(), 1.0)
-                
+            # ===== Forward & Backward (manual gradient accumulation) =====
+            loss, loss_dict = self.compute_loss(batch)
+            loss = loss / self.config['training']['gradient_accumulation']
+            
+            loss.backward()
+            
+            accumulation_step += 1
+            
+            # Gradient accumulation 완료 시 optimizer step
+            if accumulation_step >= self.config['training']['gradient_accumulation']:
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
                 self.optimizer.step()
                 self.scheduler.step()
                 self.optimizer.zero_grad()
+                accumulation_step = 0
+                should_log = True
+            else:
+                should_log = False
             
             # ===== Hard Example Mining =====
             if 'l_auto' in loss_dict and loss_dict['l_auto'] > self._get_hard_threshold():
@@ -284,27 +290,22 @@ class Trainer:
                 )
             
             # ===== Logging & Step Update (only on actual optimizer step) =====
-            if self.accelerator.sync_gradients:
+            if should_log:
                 self.global_step += 1
                 pbar.update(1)
                 
-                # Gradient norm 계산
+                # Gradient norm 계산 (optimizer step 전에는 0이므로 패스)
                 grad_norm = 0.0
-                for p in self.model.parameters():
-                    if p.grad is not None:
-                        grad_norm += p.grad.data.norm(2).item() ** 2
-                grad_norm = grad_norm ** 0.5
                 
                 if self.is_main:
                     log_dict = {
-                        "loss": loss.item(),
+                        "loss": loss.item() * self.config['training']['gradient_accumulation'],  # 원래 loss 복원
                         "lr": self.scheduler.get_last_lr()[0],
                         "step": self.global_step,
-                        "gradient_norm": grad_norm,
                         **loss_dict
                     }
                     wandb.log(log_dict)
-                    pbar.set_postfix(loss=f"{loss.item():.4f}")
+                    pbar.set_postfix(loss=f"{log_dict['loss']:.4f}")
             
             # ===== Periodic Evaluation =====
             eval_interval = self.config['training'].get('eval_interval', 500)

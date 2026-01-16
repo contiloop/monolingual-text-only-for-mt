@@ -101,15 +101,39 @@ class Trainer:
         model_kwargs = {
             'trust_remote_code': True,
             'device_map': 'auto',
-            'attn_implementation': 'flash_attention_2'  # Flash Attention 2 추가!
         }
+        
+        # Attention 구현 선택 (Flash Attention 2 > SDPA > eager)
+        def get_attn_implementation():
+            # 1. Flash Attention 2 시도
+            try:
+                import flash_attn
+                # GPU가 sm_80 이상(Ampere: A100, RTX 30xx, 40xx)인지 확인
+                if torch.cuda.is_available():
+                    capability = torch.cuda.get_device_capability()
+                    if capability[0] >= 8:  # sm_80 이상
+                        return 'flash_attention_2', "Flash Attention 2"
+                    else:
+                        return 'sdpa', f"SDPA (GPU sm_{capability[0]}{capability[1]} < sm_80)"
+            except ImportError:
+                pass
+            
+            # 2. SDPA fallback (PyTorch 2.0+)
+            if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
+                return 'sdpa', "SDPA (Flash Attention not installed)"
+            
+            # 3. Eager fallback
+            return 'eager', "Eager attention (legacy)"
+        
+        attn_impl, attn_msg = get_attn_implementation()
+        model_kwargs['attn_implementation'] = attn_impl
+        if self.is_main:
+            print(f"⚡ Using {attn_msg}")
+        
         if bnb_config:
             model_kwargs['quantization_config'] = bnb_config
         else:
             model_kwargs['torch_dtype'] = torch.bfloat16
-        
-        if self.is_main:
-            print("⚡ Using Flash Attention 2")
         
         self.model = AutoModelForCausalLM.from_pretrained(
             config['model']['name'],

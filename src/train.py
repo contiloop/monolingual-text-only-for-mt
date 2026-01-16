@@ -170,10 +170,12 @@ class Trainer:
             config['model']['name'],
             **model_kwargs
         )
-        
-        # Embedding 리사이즈
-        self.model.resize_token_embeddings(len(self.tokenizer))
-        
+
+        # Embedding 리사이즈 (4-bit 모델에서 OOM 방지)
+        # mean_resizing=False로 설정하여 기존 평균/공분산 계산 스킵
+        if len(self.tokenizer) != self.model.config.vocab_size:
+            self.model.resize_token_embeddings(len(self.tokenizer), mean_resizing=False)
+
         # gradient checkpointing과 호환을 위해 use_cache 비활성화
         self.model.config.use_cache = False
         

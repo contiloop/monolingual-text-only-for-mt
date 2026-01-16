@@ -19,7 +19,7 @@ wandb login
 
 # 3. 학습 실행 (Hydra + Experiment)
 # 4x16GB GPU 기준
-torchrun --nproc_per_node=4 src/train.py +experiment=4x16gb
+torchrun --nproc_per_node=4 src/train.py experiment=4x16gb
 ```
 
 ### WandB 로그인 안 될 때 (Jupyter/Lightning AI)
@@ -106,19 +106,19 @@ mv korean_english_parallel_dataset korean_english_parallel
 
 ```bash
 # 4× RTX 4080/5080 16GB (4-bit QLoRA)
-torchrun --nproc_per_node=4 src/train.py +experiment=4x16gb
+torchrun --nproc_per_node=4 src/train.py experiment=4x16gb
 
 # A100 40-80GB (8-bit)
-torchrun --nproc_per_node=4 src/train.py +experiment=a100
+torchrun --nproc_per_node=4 src/train.py experiment=a100
 
 # 디버깅 모드 (1 step 실행, 저장 안 함)
-python src/train.py +experiment=debug
+python src/train.py experiment=debug
 
 # 단일 GPU 4-bit
-python src/train.py +experiment=single_4bit
+python src/train.py experiment=single_4bit
 
 # CLI에서 값 override (실험 config 위에 덮어쓰기)
-python src/train.py +experiment=4x16gb training.batch_size=2
+python src/train.py experiment=4x16gb training.batch_size=2
 ```
 
 ---

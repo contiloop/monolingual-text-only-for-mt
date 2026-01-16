@@ -5,6 +5,7 @@ defaults:
   - model: midm
   - training: default
   - data: default
+  - experiment: null
   - _self_
 
 project:

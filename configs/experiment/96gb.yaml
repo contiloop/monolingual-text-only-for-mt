@@ -1,6 +1,6 @@
 # @package _global_
 # configs/experiment/96gb.yaml
-# 96GB VRAM (A100 80GB 또는 H100) - 최대 성능 설정
+# 96GB VRAM - 메모리 안전 설정
 
 training:
   batch_size: 2              # GPU당 배치 크기 (메모리 절약)
@@ -9,8 +9,11 @@ training:
                              # - 4-GPU DDP: 2 × 4 × 8 = 64
   learning_rate: 2e-4
 
+# DataLoader의 tokenizer max_length (중요!)
+max_length: 1536             # 토크나이징 시 최대 길이
+
 model:
-  max_seq_length: 2048       # 긴 문맥 학습
+  max_seq_length: 1536       # 모델 최대 시퀀스 길이 (max_length와 일치)
   lora:
     r: 128                   # LoRA rank 증가
     alpha: 256               # alpha도 비례 증가
@@ -18,7 +21,6 @@ model:
     load_in_4bit: false      # Full precision 사용
     load_in_8bit: false
 
-# 메모리 여유 있으므로 aggressive 설정
 data:
   chunking:
-    max_chars: 6000          # 더 긴 청크 (3000 → 6000)
+    max_chars: 4500          # 1536 토큰 ≈ 4500 chars

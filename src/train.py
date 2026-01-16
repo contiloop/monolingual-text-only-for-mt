@@ -499,7 +499,7 @@ class Trainer:
                 enc = self.tokenizer(
                     combined,
                     truncation=True,
-                    max_length=self.config['model']['max_seq_length'],
+                    max_length=self.config.get('max_length', 1024),
                     return_tensors='pt'
                 )
                 

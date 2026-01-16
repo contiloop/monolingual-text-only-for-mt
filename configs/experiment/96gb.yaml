@@ -9,11 +9,10 @@ training:
                              # - 4-GPU DDP: 1 × 4 × 16 = 64
   learning_rate: 2e-4
 
-# DataLoader의 tokenizer max_length (중요!)
-max_length: 1024             # 토크나이징 시 최대 길이 (안전한 길이)
+# 학습 및 평가 모두에 사용되는 max_length
+max_length: 1024             # 토크나이징 시 최대 길이 (99% 데이터 커버)
 
 model:
-  max_seq_length: 1024       # 모델 최대 시퀀스 길이
   lora:
     r: 64                    # LoRA rank (기본값으로 복원)
     alpha: 128               # alpha도 복원

@@ -16,6 +16,21 @@ wandb login
 python src/train.py --config configs/base.yaml
 ```
 
+### WandB 로그인 안 될 때 (Jupyter/Lightning AI)
+
+```bash
+# 방법 1: 환경변수로 실행
+WANDB_API_KEY=your-api-key python src/train.py --config configs/base.yaml
+
+# 방법 2: Python에서 직접 설정
+python -c "import os; os.environ['WANDB_API_KEY']='your-api-key'"
+
+# 방법 3: .netrc 파일 생성
+echo "machine api.wandb.ai login user password YOUR_API_KEY" > ~/.netrc
+```
+
+> API Key 확인: https://wandb.ai/authorize
+
 ---
 
 ## 데이터 준비

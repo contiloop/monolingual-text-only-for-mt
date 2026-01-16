@@ -1,10 +1,6 @@
 # configs/experiment/debug.yaml
 # 디버깅용 설정: 빠르게 실행하여 코드 오류 확인
-
 # @package _global_
-defaults:
-  - override /training: default
-  - override /model: midm
 
 training:
   batch_size: 1

@@ -6,9 +6,8 @@ defaults:
   - training: default
   - data: default
   - _self_
-  - optional experiment: null
-  # experiment는 _self_ 다음에 와야 최우선 순위로 오버라이드됨
-  # 사용법: python src/train.py experiment=4x16gb
+  # experiment는 defaults에 포함하지 않음 (CLI에서 +experiment= 사용)
+  # 사용법: python src/train.py +experiment=4x16gb
 
 project:
   name: "midm-12b-financial-translation"

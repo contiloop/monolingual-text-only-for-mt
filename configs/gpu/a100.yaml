@@ -1,0 +1,13 @@
+# configs/gpu/a100.yaml
+# A100 40-80GB - 8-bit 또는 full precision
+# @package _global_
+
+training:
+  batch_size: 4
+  gradient_accumulation: 8  # effective = 4 × 1 × 8 = 32
+
+model:
+  max_seq_length: 4096  # A100은 더 긴 시퀀스 가능
+  quantization:
+    load_in_8bit: true
+    load_in_4bit: false

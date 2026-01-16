@@ -1,26 +1,29 @@
 # project/src/train.py
 """
-금융 번역 모델 학습 스크립트 (Accelerate 기반)
+금융 번역 모델 학습 스크립트 (Accelerate + Hydra 기반)
 - Distributed: DDP / FSDP / DeepSpeed 자동 지원
 - Phase 1: Denoising (L_auto)
 - Phase 2: Back-Translation (L_back)
+- Config: Hydra hierarchical config system
 """
 
 import os
 import sys
 import json
 import torch
-import yaml
-import argparse
 from pathlib import Path
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LambdaLR  # get_cosine_schedule_with_warmup uses this internally
+from torch.optim.lr_scheduler import LambdaLR
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 from peft import get_peft_model, LoraConfig, TaskType, prepare_model_for_kbit_training
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 import wandb
 from tqdm import tqdm
+
+# Hydra
+import hydra
+from omegaconf import DictConfig, OmegaConf
 
 # 프로젝트 루트 (src의 부모 = 루트)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -29,9 +32,12 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from src.data.dataloader import create_dataloader
 from src.data.prompt_builder import PromptBuilder
 
-def load_config(path):
-    with open(path) as f:
-        return yaml.safe_load(f)
+
+def resolve_path(cfg_path: str) -> Path:
+    """상대 경로를 프로젝트 루트 기준 절대 경로로 변환"""
+    if os.path.isabs(cfg_path):
+        return Path(cfg_path)
+    return PROJECT_ROOT / cfg_path
 
 class Trainer:
     def __init__(self, config):
@@ -162,9 +168,9 @@ class Trainer:
         if self.is_main:
             print("📊 Creating DataLoader...")
         
-        ko_path = PROJECT_ROOT / config['data']['ko_processed_path']
-        en_path = PROJECT_ROOT / config['data']['en_processed_path']
-        glossary_path = PROJECT_ROOT / config['glossary']['path']
+        ko_path = resolve_path(config['data']['ko_processed_path'])
+        en_path = resolve_path(config['data']['en_processed_path'])
+        glossary_path = resolve_path(config['data']['glossary']['path'])
         
         self.dataloader, self.dataset, self.pseudo_buffer, self.hard_buffer = create_dataloader(
             config=config,
@@ -380,13 +386,13 @@ class Trainer:
         ckpt_path = self._save_checkpoint()
         
         import subprocess
-        bt_output = PROJECT_ROOT / self.config['data']['bt_cache_dir'] / f"bt_{self.global_step}.jsonl"
+        bt_output = resolve_path(self.config['data']['bt_cache_dir']) / f"bt_{self.global_step}.jsonl"
         
         cmd = [
             "python", str(PROJECT_ROOT / "src/bt/vllm_generator.py"),
             "--base_model", self.config['model']['name'],
             "--adapter", ckpt_path,
-            "--input_file", str(PROJECT_ROOT / self.config['data']['ko_processed_path']),
+            "--input_file", str(resolve_path(self.config['data']['ko_processed_path'])),
             "--output_file", str(bt_output),
             "--direction", "ko_to_en",
             "--max_samples", "10000"
@@ -406,7 +412,7 @@ class Trainer:
         if not self.is_main:
             return None
             
-        output_dir = PROJECT_ROOT / self.config['project']['output_dir']
+        output_dir = resolve_path(self.config['project']['output_dir'])
         output_dir.mkdir(parents=True, exist_ok=True)
         
         ckpt_path = output_dir / ("final" if final else f"ckpt_{self.global_step}")
@@ -552,11 +558,24 @@ class Trainer:
         return bleu.score
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config', default='configs/base.yaml')
-    args = parser.parse_args()
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(cfg: DictConfig):
+    """
+    Hydra entry point
     
-    config = load_config(args.config)
+    Usage:
+        python src/train.py                          # 기본 설정
+        python src/train.py gpu=a100                 # GPU 프로파일 변경
+        python src/train.py training.batch_size=2   # CLI override
+        torchrun --nproc_per_node=4 src/train.py    # Multi-GPU
+    """
+    # DictConfig를 dict로 변환 (기존 코드 호환성)
+    config = OmegaConf.to_container(cfg, resolve=True)
+    
+    # 학습 시작
     trainer = Trainer(config)
     trainer.train()
+
+
+if __name__ == "__main__":
+    main()

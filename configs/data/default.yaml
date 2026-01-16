@@ -1,0 +1,69 @@
+# configs/data/default.yaml
+# 데이터 경로 및 설정
+
+ko_processed_path: "data/processed/ko_processed.jsonl"
+en_processed_path: "data/processed/en_processed.jsonl"
+bt_cache_dir: "data/bt_cache"
+
+style_tags:
+  tags:
+    formal: "<|formal|>"
+    casual: "<|casual|>"
+  distribution:
+    formal: 0.5
+    casual: 0.3
+    none: 0.2
+
+protection:
+  number_window: 2
+
+# Chunking
+chunking:
+  enabled: true
+  max_chars: 3000
+  overlap_chars: 200
+  split_on: ["\n\n", ". ", "? ", "! "]
+
+# Prompt Building
+prompt:
+  context_dropout: 0.20
+  terms_dropout: 0.30
+  style_tag_dropout: 0.35
+  separator: "\n\n"
+
+# Soft Instructions
+instruction:
+  ko: "금융 용어는 표준 번역 사용. 고유명사와 업계 원어 표현은 유지. 중요 표현은 '번역(원어)' 형식 사용."
+  en: "Use standard financial terminology. Keep proper nouns and industry terms in original. For key terms use 'translation(original)' format."
+
+# Glossary
+glossary:
+  enabled: false
+  path: "data/glossary.json"
+
+# Few-shot
+fewshot:
+  enabled: true
+  train_prob: 0.3
+  num_examples: 3
+
+# Sampling Strategy
+sampling:
+  strategy: "balanced"
+  balanced:
+    ko_ratio: 0.5
+    en_ratio: 0.5
+  weighted:
+    ko_weight: 2.0
+    en_weight: 1.0
+  
+  hard_example:
+    enabled: true
+    threshold_percentile: 0.2
+    buffer_size: 10000
+    batch_ratio: 0.2
+
+  filter:
+    schedule:
+      - {progress: 0.3, length_ratio: [0.6, 1.8], num_preservation: 0.85}
+      - {progress: 0.7, length_ratio: [0.5, 2.0], num_preservation: 0.80}

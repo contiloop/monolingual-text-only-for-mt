@@ -17,7 +17,9 @@ dependencies = [
     "sentencepiece",
     "datasets>=2.14.0",
     "sacrebleu",
-    "pandas"
+    "pandas",
+    "hydra-core>=1.3.0",
+    "omegaconf>=2.3.0"
 ]
 
 [project.optional-dependencies]

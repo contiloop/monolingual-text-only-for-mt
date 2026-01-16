@@ -1,0 +1,13 @@
+# configs/gpu/single_4bit.yaml
+# 단일 GPU 4-bit QLoRA (RTX 4090 등)
+# @package _global_
+
+training:
+  batch_size: 1
+  gradient_accumulation: 32  # effective = 32
+
+model:
+  quantization:
+    load_in_4bit: true
+    bnb_4bit_quant_type: nf4
+    bnb_4bit_use_double_quant: true

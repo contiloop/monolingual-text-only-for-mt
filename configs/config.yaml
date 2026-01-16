@@ -1,0 +1,21 @@
+# configs/config.yaml
+# 메인 config - defaults 정의
+
+defaults:
+  - model: midm
+  - training: default
+  - data: default
+  - gpu: 4x16gb
+  - _self_
+
+project:
+  name: "midm-12b-financial-translation"
+  output_dir: "./outputs"
+
+# Hydra 설정
+hydra:
+  run:
+    # outputs/실험명/날짜/시간 순으로 저장
+    dir: ./outputs/${project.name}/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: false  # CWD 변경 안 함 (상대경로 문제 방지, DDP 호환성)

@@ -1,0 +1,18 @@
+# configs/model/midm.yaml
+# 모델 설정
+
+name: "K-intelligence/Midm-2.0-Base-Instruct"
+max_seq_length: 2048
+
+lora:
+  r: 64
+  alpha: 128
+  dropout: 0.05
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
+
+# Quantization (기본값: 없음, gpu/ config에서 override)
+quantization:
+  load_in_4bit: false
+  load_in_8bit: false
+  bnb_4bit_quant_type: "nf4"
+  bnb_4bit_use_double_quant: true

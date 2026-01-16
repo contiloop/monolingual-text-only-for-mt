@@ -1,6 +1,6 @@
+# @package _global_
 # configs/experiment/debug.yaml
 # 디버깅용 설정: 빠르게 실행하여 코드 오류 확인
-# @package _global_
 
 training:
   batch_size: 1

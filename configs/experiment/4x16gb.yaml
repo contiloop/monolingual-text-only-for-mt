@@ -1,6 +1,6 @@
+# @package _global_
 # configs/experiment/4x16gb.yaml
 # 4× RTX 4080/5080 (16GB each) - DDP 설정
-# @package _global_
 
 training:
   batch_size: 1

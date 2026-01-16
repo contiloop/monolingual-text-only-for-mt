@@ -14,6 +14,10 @@ def test_config(cfg: DictConfig):
     print("Hydra Config 로딩 테스트")
     print("=" * 80)
 
+    # Hydra 버전 확인
+    import hydra as hydra_module
+    print(f"\n[Hydra Version]: {hydra_module.__version__}")
+
     # 전체 config 출력
     print("\n[전체 Config]")
     print(OmegaConf.to_yaml(cfg))

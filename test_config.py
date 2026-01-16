@@ -47,8 +47,8 @@ def test_config(cfg: DictConfig):
 
     print("\n사용법:")
     print("  기본:         python test_config.py")
-    print("  실험 설정:    python test_config.py +experiment=4x16gb")
-    print("  디버그:       python test_config.py +experiment=debug")
+    print("  실험 설정:    python test_config.py experiment=4x16gb")
+    print("  디버그:       python test_config.py experiment=debug")
     print("  CLI 오버라이드: python test_config.py model.quantization.load_in_4bit=false")
     print()
 

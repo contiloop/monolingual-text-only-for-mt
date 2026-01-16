@@ -3,14 +3,37 @@
 
 _base_: base.yaml
 
+project:
+  name: "midm-12b-financial-translation"
+  output_dir: "./outputs"
+
 model:
   name: "K-intelligence/Midm-2.0-Base-Instruct"
   max_seq_length: 2048
+  lora:
+    r: 64
+    alpha: 128
+    dropout: 0.05
+    target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]
   quantization:
     load_in_4bit: true
     bnb_4bit_quant_type: nf4
     bnb_4bit_use_double_quant: true
 
 training:
-  batch_size: 2        # GPU당 2개
-  gradient_accumulation: 8  # effective = 2 × 4 × 8 = 64
+  batch_size: 1            # GPU당 1개 (OOM 방지)
+  gradient_accumulation: 16  # effective = 1 × 4 × 16 = 64
+  learning_rate: 2e-4
+  steps: 50000
+  warmup_ratio: 0.05
+  eval_interval: 500
+  
+  early_stopping:
+    enabled: true
+    patience: 5
+    min_delta: 0.01
+
+data:
+  ko_processed_path: "data/processed/ko_processed.jsonl"
+  en_processed_path: "data/processed/en_processed.jsonl"
+  bt_cache_dir: "data/bt_cache"

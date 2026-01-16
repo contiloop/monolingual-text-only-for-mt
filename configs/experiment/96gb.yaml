@@ -3,24 +3,24 @@
 # 96GB VRAM - 메모리 안전 설정
 
 training:
-  batch_size: 2              # GPU당 배치 크기 (메모리 절약)
-  gradient_accumulation: 8   # effective batch size:
-                             # - 단일 GPU: 2 × 8 = 16
-                             # - 4-GPU DDP: 2 × 4 × 8 = 64
+  batch_size: 1              # GPU당 배치 크기 (메모리 안전)
+  gradient_accumulation: 16  # effective batch size:
+                             # - 단일 GPU: 1 × 16 = 16
+                             # - 4-GPU DDP: 1 × 4 × 16 = 64
   learning_rate: 2e-4
 
 # DataLoader의 tokenizer max_length (중요!)
-max_length: 1536             # 토크나이징 시 최대 길이
+max_length: 1024             # 토크나이징 시 최대 길이 (안전한 길이)
 
 model:
-  max_seq_length: 1536       # 모델 최대 시퀀스 길이 (max_length와 일치)
+  max_seq_length: 1024       # 모델 최대 시퀀스 길이
   lora:
-    r: 128                   # LoRA rank 증가
-    alpha: 256               # alpha도 비례 증가
+    r: 64                    # LoRA rank (기본값으로 복원)
+    alpha: 128               # alpha도 복원
   quantization:
     load_in_4bit: false      # Full precision 사용
     load_in_8bit: false
 
 data:
   chunking:
-    max_chars: 4500          # 1536 토큰 ≈ 4500 chars
+    max_chars: 3000          # 1024 토큰 ≈ 3000 chars (기본값)

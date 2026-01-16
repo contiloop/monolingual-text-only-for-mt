@@ -72,26 +72,14 @@ class Trainer:
         
         # Quantization 설정 (config에서 읽기)
         quant_config = config.get('model', {}).get('quantization', {})
-        bnb_config = None
-        
-        if quant_config.get('load_in_4bit', False):
-            # 4-bit QLoRA
-            bnb_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type=quant_config.get('bnb_4bit_quant_type', 'nf4'),
-                bnb_4bit_compute_dtype=torch.bfloat16,
-                bnb_4bit_use_double_quant=True
-            )
-        # Quantization 설정 (config에서 읽기)
-        quant_config = config.get('model', {}).get('quantization', {})
-        
+
         # 디버깅: Config 확인
         if self.is_main:
             print(f"🔍 Config Model: {config['model'].get('name')}")
             print(f"🔍 Config Quantization: {quant_config}")
-        
+
         bnb_config = None
-        
+
         if quant_config.get('load_in_4bit', False):
             # 4-bit QLoRA
             bnb_config = BitsAndBytesConfig(
@@ -102,7 +90,7 @@ class Trainer:
             )
             if self.is_main:
                 print("🔧 Using 4-bit quantization (QLoRA)")
-                
+
         elif quant_config.get('load_in_8bit', False):
             # 8-bit
             bnb_config = BitsAndBytesConfig(

@@ -2,10 +2,6 @@
 # 4× RTX 4080/5080 (16GB each) - DDP 설정
 # @package _global_
 
-defaults:
-  - override /model: midm
-  - override /training: default
-
 training:
   batch_size: 1
   gradient_accumulation: 16  # effective = 1 × 4 × 16 = 64

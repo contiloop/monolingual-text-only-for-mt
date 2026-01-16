@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 학습한 체크포인트들 비교 스크립트
-vocab_size 불일치 강제 수정
+LoRA adapter 로드
 """
 
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
 from pathlib import Path
 import sys
 import json
@@ -50,7 +51,7 @@ def find_checkpoints():
 
 
 def load_model(model_path):
-    """모델 로드 (vocab_size 강제 수정)"""
+    """LoRA 모델 로드 (base model + adapter)"""
     print(f"  Loading {model_path}...")
 
     BASE_MODEL = "K-intelligence/Midm-2.0-Base-Instruct"
@@ -60,31 +61,34 @@ def load_model(model_path):
         model_path,
         trust_remote_code=True
     )
-    actual_vocab_size = len(tokenizer)
 
-    # 2. Config 로드 (원본 모델 기반 + vocab_size 수정)
-    config = AutoConfig.from_pretrained(
+    # 2. Base model 로드
+    print(f"    Loading base model: {BASE_MODEL}")
+    base_model = AutoModelForCausalLM.from_pretrained(
         BASE_MODEL,
-        trust_remote_code=True
-    )
-
-    print(f"  Base config vocab_size: {config.vocab_size}")
-    print(f"  Checkpoint vocab_size: {actual_vocab_size}")
-
-    # Config의 vocab_size를 체크포인트 크기로 수정
-    config.vocab_size = actual_vocab_size
-
-    # 3. 모델 로드 (체크포인트 weights + 수정된 config)
-    model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        config=config,
         dtype=torch.bfloat16,
         device_map="auto",
         trust_remote_code=True
     )
-    model.eval()
 
-    print(f"  ✓ Loaded successfully!")
+    # 3. Special tokens 추가 (학습 시와 동일하게)
+    special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>']
+    num_added = tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
+
+    if num_added > 0:
+        print(f"    Added {num_added} special tokens")
+        base_model.resize_token_embeddings(len(tokenizer))
+
+    # 4. LoRA adapter 로드
+    print(f"    Loading LoRA adapter...")
+    model = PeftModel.from_pretrained(base_model, model_path)
+
+    # 5. Merge adapter (inference 속도 향상)
+    print(f"    Merging adapter...")
+    model = model.merge_and_unload()
+
+    model.eval()
+    print(f"  ✓ Loaded successfully! (vocab_size={len(tokenizer)})")
     return model, tokenizer
 
 

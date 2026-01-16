@@ -11,8 +11,10 @@ uv venv .venv && source .venv/bin/activate
 # 기본 설치 (SDPA 사용)
 uv pip install -e .
 
-# Flash Attention 2 포함 설치 (GPU 서버 권장, 더 빠름)
-uv pip install -e ".[flash]" --no-build-isolation
+# Flash Attention 2 설치 (선택사항, GPU 서버 권장)
+# - 요구사항: CUDA 11.8+, GPU Compute Capability 8.0+ (Ampere 이상: A100, RTX 30xx/40xx/50xx)
+# - 효과: 학습 속도 20-30% 향상
+pip install flash-attn --no-build-isolation
 
 # 2. WandB 로그인
 wandb login

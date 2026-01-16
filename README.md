@@ -7,7 +7,12 @@
 git clone https://github.com/contiloop/monolingual-text-only-for-mt.git
 cd monolingual-text-only-for-mt
 uv venv .venv && source .venv/bin/activate
+
+# 기본 설치 (SDPA 사용)
 uv pip install -e .
+
+# Flash Attention 2 포함 설치 (GPU 서버 권장, 더 빠름)
+uv pip install -e ".[flash]" --no-build-isolation
 
 # 2. WandB 로그인
 wandb login

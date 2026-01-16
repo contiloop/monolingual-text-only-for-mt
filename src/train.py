@@ -98,10 +98,22 @@ class Trainer:
                 print("🔧 Using full precision (bf16)")
         
         # 모델 로드
-        model_kwargs = {
-            'trust_remote_code': True,
-            'device_map': 'auto',
-        }
+        # DDP에서는 device_map='auto' 사용 불가 (각 프로세스가 자신의 GPU에만 로드)
+        local_rank = int(os.environ.get('LOCAL_RANK', 0))
+        is_distributed = self.accelerator.num_processes > 1
+        
+        if is_distributed:
+            # DDP: 각 프로세스가 자신의 GPU에 로드
+            model_kwargs = {
+                'trust_remote_code': True,
+                'device_map': {'': local_rank},  # 현재 프로세스의 GPU에만 로드
+            }
+        else:
+            # 단일 GPU 또는 FSDP: auto 사용 가능
+            model_kwargs = {
+                'trust_remote_code': True,
+                'device_map': 'auto',
+            }
         
         # Attention 구현 선택 (Flash Attention 2 > SDPA > eager)
         def get_attn_implementation():

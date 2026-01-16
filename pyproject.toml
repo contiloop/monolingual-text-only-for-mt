@@ -25,6 +25,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "black", "ruff"]
 vllm = ["vllm>=0.2.7"]
+flash = ["flash-attn>=2.0.0"]
 
 [tool.uv]
 # PyTorch CUDA 버전 맞추기 (필요시 주석 해제)

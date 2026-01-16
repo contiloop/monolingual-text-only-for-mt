@@ -3,10 +3,10 @@
 # 96GB VRAM - 메모리 안전 설정
 
 training:
-  batch_size: 1              # GPU당 배치 크기 (메모리 안전)
-  gradient_accumulation: 16  # effective batch size:
-                             # - 단일 GPU: 1 × 16 = 16
-                             # - 4-GPU DDP: 1 × 4 × 16 = 64
+  batch_size: 6              # GPU당 배치 크기 (96GB 최적화)
+  gradient_accumulation: 3   # effective batch size:
+                             # - 단일 GPU: 6 × 3 = 18
+                             # - 4-GPU DDP: 6 × 4 × 3 = 72
   learning_rate: 2e-4
 
 # 학습 및 평가 모두에 사용되는 max_length

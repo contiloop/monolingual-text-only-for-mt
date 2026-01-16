@@ -7,6 +7,7 @@ training:
   gradient_accumulation: 16  # effective = 1 × 4 × 16 = 64
 
 model:
+  max_seq_length: 768  # 메모리 절약 (1024 -> 768)
   quantization:
     load_in_4bit: true
     bnb_4bit_quant_type: nf4

@@ -48,15 +48,17 @@ class FinancialTranslationDataset(IterableDataset):
     
     def __iter__(self) -> Iterator[CollatedBatch]:
         """무한 이터레이터"""
-        batch_size = self.config.get('batch_size', 4)
-        
+        # training.batch_size 또는 최상위 batch_size 사용
+        training_config = self.config.get('training', {})
+        batch_size = training_config.get('batch_size', self.config.get('batch_size', 4))
+
         while True:
             # 배치 구성
             composed = self.composer.compose_batch(batch_size)
-            
+
             # 콜레이트 (토크나이징)
             collated = self.collator(composed)
-            
+
             yield collated
     
     # === 상태 관리 인터페이스 ===
@@ -185,9 +187,10 @@ def create_dataloader(
     # 7. DataLoader
     dataloader = DataLoader(
         dataset,
-        batch_size=None,  # IterableDataset이므로 None
-        num_workers=0,    # IterableDataset은 multi-worker 주의
-        pin_memory=True
+        batch_size=None,  # IterableDataset이므로 None (내부에서 배치 생성)
+        num_workers=4,    # CPU 멀티코어 활용으로 GPU 병목 해소
+        pin_memory=True,  # GPU 전송 속도 향상
+        prefetch_factor=2 # worker당 2개 배치 미리 준비
     )
     
     return dataloader, dataset, pseudo_buffer, hard_buffer

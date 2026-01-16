@@ -15,10 +15,12 @@ OUTPUT_DIR = "./outputs"
 LOG_FILE = "checkpoint_comparison.txt"
 
 TEST_CASES = [
-    "<|casual|> um Q: What was I mean the company's return on equity for the 2021-Q2 period",
-    "<|formal|> The revenue [MASK] Q2 2021 increased by approximately 15%",
-    "Q: What is the percentage of capex spending that is projects A: The percentage of base capex",
-    "<|casual|> Q: What was the percentage increase in net sales for Amazon in Q2 2021 compared to Q2 2020",
+    # 뉴스/금융 문서 스타일 (학습 데이터와 유사)
+    "<|formal|> The company's revenue [MASK] Q2 2021 increased by approximately 15%",
+    "<|casual|> um The total revenue for you know the second quarter was like $5.2 billion",
+    "The company reported strong performance with net income of approximately uh $1.2 billion",
+    "<|formal|> Market analysts expect the stock price to uh you know continue rising in the next quarter",
+    "The Federal Reserve announced that interest rates would uh remain unchanged at like 5.25 percent",
 ]
 
 

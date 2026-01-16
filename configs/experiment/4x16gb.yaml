@@ -1,6 +1,10 @@
 # configs/experiment/4x16gb.yaml
 # 4× RTX 4080/5080 (16GB each) - DDP 설정
-# @package _global_
+
+# @package _global_를 제거하고 defaults의 override를 사용
+defaults:
+  - override /training: default
+  - override /model: midm
 
 training:
   batch_size: 1

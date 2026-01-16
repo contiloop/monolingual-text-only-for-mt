@@ -188,7 +188,7 @@ def create_dataloader(
     dataloader = DataLoader(
         dataset,
         batch_size=None,  # IterableDataset이므로 None (내부에서 배치 생성)
-        num_workers=4,    # CPU 멀티코어 활용으로 GPU 병목 해소
+        num_workers=2,    # CPU 멀티코어 활용 (메모리 고려하여 2로 설정)
         pin_memory=True,  # GPU 전송 속도 향상
         prefetch_factor=2 # worker당 2개 배치 미리 준비
     )

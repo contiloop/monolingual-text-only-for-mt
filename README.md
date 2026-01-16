@@ -48,10 +48,21 @@ tar -czvf processed_data.tar.gz *.jsonl
 # SSH (Vast.AI 등)
 scp -P [포트] processed_data.tar.gz root@[IP]:/workspace/monolingual-text-only-for-mt/data/processed/
 
+# 백그라운드 전송 (터미널 닫아도 계속됨)
+nohup scp -P [포트] data/processed/processed_data.tar.gz root@[IP]:/workspace/monolingual-text-only-for-mt/data/processed/ > scp_upload.log 2>&1 &
+tail -f scp_upload.log  # 진행 확인
+
 # 또는 Jupyter UI에서 Upload
 ```
 
-**서버에서 압축 해제:**
+**한 줄로 삭제 + 전송 + 압축해제:**
+```bash
+ssh -p [포트] root@[IP] "rm -rf /workspace/monolingual-text-only-for-mt/data/processed/*" && \
+scp -P [포트] data/processed/processed_data.tar.gz root@[IP]:/workspace/monolingual-text-only-for-mt/data/processed/ && \
+ssh -p [포트] root@[IP] "cd /workspace/monolingual-text-only-for-mt/data/processed && tar -xzvf processed_data.tar.gz && rm processed_data.tar.gz"
+```
+
+**서버에서 압축 해제 (수동):**
 ```bash
 cd /workspace/monolingual-text-only-for-mt/data/processed
 tar -xzvf processed_data.tar.gz

@@ -3,16 +3,16 @@
 # 96GB VRAM (A100 80GB 또는 H100) - 최대 성능 설정
 
 training:
-  batch_size: 4              # GPU당 배치 크기 (1 → 4)
-  gradient_accumulation: 4   # effective batch size:
-                             # - 단일 GPU: 4 × 4 = 16
-                             # - 4-GPU DDP: 4 × 4 × 4 = 64
-  learning_rate: 2e-4        # 배치 크기 증가로 LR 상향
+  batch_size: 2              # GPU당 배치 크기 (메모리 절약)
+  gradient_accumulation: 8   # effective batch size:
+                             # - 단일 GPU: 2 × 8 = 16
+                             # - 4-GPU DDP: 2 × 4 × 8 = 64
+  learning_rate: 2e-4
 
 model:
-  max_seq_length: 2048       # 긴 문맥 학습 (1024 → 2048)
+  max_seq_length: 2048       # 긴 문맥 학습
   lora:
-    r: 128                   # LoRA rank 증가 (64 → 128, 더 높은 표현력)
+    r: 128                   # LoRA rank 증가
     alpha: 256               # alpha도 비례 증가
   quantization:
     load_in_4bit: false      # Full precision 사용

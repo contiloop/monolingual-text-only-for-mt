@@ -53,34 +53,33 @@ def load_model(model_path):
     """모델 로드 (vocab_size 강제 수정)"""
     print(f"  Loading {model_path}...")
 
-    # 1. Tokenizer 로드
+    BASE_MODEL = "K-intelligence/Midm-2.0-Base-Instruct"
+
+    # 1. Tokenizer 로드 (체크포인트에서)
     tokenizer = AutoTokenizer.from_pretrained(
         model_path,
-        local_files_only=True,
         trust_remote_code=True
     )
     actual_vocab_size = len(tokenizer)
 
-    # 2. Config 로드 및 vocab_size 수정
+    # 2. Config 로드 (원본 모델 기반 + vocab_size 수정)
     config = AutoConfig.from_pretrained(
-        model_path,
-        local_files_only=True,
+        BASE_MODEL,
         trust_remote_code=True
     )
 
-    print(f"  Original config vocab_size: {config.vocab_size}")
-    print(f"  Tokenizer vocab_size: {actual_vocab_size}")
+    print(f"  Base config vocab_size: {config.vocab_size}")
+    print(f"  Checkpoint vocab_size: {actual_vocab_size}")
 
-    # Config의 vocab_size를 실제 저장된 weights 크기로 수정
+    # Config의 vocab_size를 체크포인트 크기로 수정
     config.vocab_size = actual_vocab_size
 
-    # 3. 모델 로드 (수정된 config 사용)
+    # 3. 모델 로드 (체크포인트 weights + 수정된 config)
     model = AutoModelForCausalLM.from_pretrained(
         model_path,
         config=config,
         dtype=torch.bfloat16,
         device_map="auto",
-        local_files_only=True,
         trust_remote_code=True
     )
     model.eval()

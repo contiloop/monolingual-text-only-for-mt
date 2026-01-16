@@ -50,45 +50,57 @@ def find_checkpoints():
     return checkpoints
 
 
-def load_model(model_path):
-    """LoRA 모델 로드 (base model + adapter)"""
-    print(f"  Loading {model_path}...")
+# Base model 캐싱 (한 번만 로드)
+_base_model_cache = None
+_tokenizer_cache = None
 
-    BASE_MODEL = "K-intelligence/Midm-2.0-Base-Instruct"
+def get_base_model():
+    """Base model 캐싱"""
+    global _base_model_cache, _tokenizer_cache
 
-    # 1. Tokenizer 로드 (체크포인트에서)
-    tokenizer = AutoTokenizer.from_pretrained(
-        model_path,
-        trust_remote_code=True
-    )
+    if _base_model_cache is None:
+        BASE_MODEL = "K-intelligence/Midm-2.0-Base-Instruct"
+        print(f"  Loading base model (once): {BASE_MODEL}")
 
-    # 2. Base model 로드
-    print(f"    Loading base model: {BASE_MODEL}")
-    base_model = AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL,
-        dtype=torch.bfloat16,
-        device_map="auto",
-        trust_remote_code=True
-    )
+        _tokenizer_cache = AutoTokenizer.from_pretrained(
+            BASE_MODEL,
+            trust_remote_code=True
+        )
 
-    # 3. Special tokens 추가 (학습 시와 동일하게)
-    special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>']
-    num_added = tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
+        # Special tokens 추가 (학습 시와 동일)
+        special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>']
+        _tokenizer_cache.add_special_tokens({'additional_special_tokens': special_tokens})
 
-    if num_added > 0:
-        print(f"    Added {num_added} special tokens")
-        base_model.resize_token_embeddings(len(tokenizer))
+        _base_model_cache = AutoModelForCausalLM.from_pretrained(
+            BASE_MODEL,
+            dtype=torch.bfloat16,
+            device_map="auto",
+            trust_remote_code=True
+        )
 
-    # 4. LoRA adapter 로드
-    print(f"    Loading LoRA adapter...")
-    model = PeftModel.from_pretrained(base_model, model_path)
+        # Embedding resize
+        _base_model_cache.resize_token_embeddings(len(_tokenizer_cache))
+        print(f"  ✓ Base model loaded (vocab_size={len(_tokenizer_cache)})")
 
-    # 5. Merge adapter (inference 속도 향상)
-    print(f"    Merging adapter...")
+    return _base_model_cache, _tokenizer_cache
+
+
+def load_model(adapter_path):
+    """LoRA adapter 로드"""
+    print(f"  Loading adapter: {adapter_path}")
+
+    # Base model 가져오기 (캐싱)
+    base_model, tokenizer = get_base_model()
+
+    # LoRA adapter 로드
+    model = PeftModel.from_pretrained(base_model, adapter_path)
+
+    # Merge (추론 속도 향상)
+    print(f"  Merging adapter...")
     model = model.merge_and_unload()
-
     model.eval()
-    print(f"  ✓ Loaded successfully! (vocab_size={len(tokenizer)})")
+
+    print(f"  ✓ Adapter loaded and merged!")
     return model, tokenizer
 
 

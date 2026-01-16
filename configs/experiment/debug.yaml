@@ -1,0 +1,19 @@
+# configs/experiment/debug.yaml
+# @package _global_
+
+# 디버깅용 설정: 빠르게 실행하여 코드 오류 확인
+training:
+  batch_size: 1
+  steps: 5        # 5스텝만 돌고 종료
+  log_every: 1
+  save_every: 0   # 저장 안 함
+  learning_rate: 1e-4
+
+project:
+  name: "debug-run"
+  tags: ["debug"]
+
+# 4-bit 로딩은 시간 절약을 위해 끔 (또는 필요시 켬)
+model:
+  quantization:
+    load_in_4bit: true # 메모리 절약을 위해 켬 (로딩 시간은 좀 걸림)

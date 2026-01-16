@@ -17,10 +17,9 @@ uv pip install -e ".[flash]" --no-build-isolation
 # 2. WandB 로그인
 wandb login
 
-# 3. 학습 실행 (Hydra config 시스템)
-python src/train.py                    # 기본 설정 (4x16GB GPU)
-python src/train.py gpu=a100           # A100 프로파일
-python src/train.py gpu=single_4bit    # 단일 GPU 4-bit
+# 3. 학습 실행 (Hydra + Experiment)
+# 4x16GB GPU 기준
+torchrun --nproc_per_node=4 src/train.py +experiment=4x16gb
 ```
 
 ### WandB 로그인 안 될 때 (Jupyter/Lightning AI)
@@ -101,23 +100,25 @@ mv korean_english_parallel_dataset korean_english_parallel
 
 ---
 
-## GPU별 설정 (Hydra)
+## 학습 실행 (Experiment 패턴)
+
+이 프로젝트는 Hydra의 **Experiment** 패턴을 사용하여 하드웨어 설정을 관리합니다.
 
 ```bash
-# 4× RTX 4080/5080 16GB (기본값)
-torchrun --nproc_per_node=4 src/train.py
+# 4× RTX 4080/5080 16GB (4-bit QLoRA)
+torchrun --nproc_per_node=4 src/train.py +experiment=4x16gb
 
-# A100 40-80GB
-torchrun --nproc_per_node=4 src/train.py gpu=a100
+# A100 40-80GB (8-bit)
+torchrun --nproc_per_node=4 src/train.py +experiment=a100
 
-# 단일 GPU 4-bit QLoRA
-python src/train.py gpu=single_4bit
+# 디버깅 모드 (1 step 실행, 저장 안 함)
+python src/train.py +experiment=debug
 
-# CLI에서 값 override
-python src/train.py training.batch_size=2 training.learning_rate=1e-4
+# 단일 GPU 4-bit
+python src/train.py +experiment=single_4bit
 
-# Sweep (여러 LR 테스트)
-python src/train.py --multirun training.learning_rate=1e-4,2e-4,5e-4
+# CLI에서 값 override (실험 config 위에 덮어쓰기)
+python src/train.py +experiment=4x16gb training.batch_size=2
 ```
 
 ---
@@ -133,10 +134,10 @@ configs/
 │   └── default.yaml      # 학습 기본 설정
 ├── data/
 │   └── default.yaml      # 데이터 경로
-└── gpu/
-    ├── 4x16gb.yaml       # 4× RTX 4080/5080 (기본값)
-    ├── a100.yaml         # A100 40GB+
-    └── single_4bit.yaml  # 단일 GPU
+└── experiment/           # 하드웨어/실험 프로필 (설정 덮어쓰기)
+    ├── 4x16gb.yaml       # 4-bit, Gradient Acc 16
+    ├── a100.yaml         # 8-bit, Gradient Acc 4
+    └── debug.yaml        # 디버깅용
 ```
 
 **장점:**

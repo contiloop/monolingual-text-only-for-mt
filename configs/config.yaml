@@ -5,9 +5,9 @@ defaults:
   - model: midm
   - training: default
   - data: default
+  - optional experiment: null
   - _self_
-  - experiment: null
-  # experiment는 _self_ 다음에 와야 model/training/data를 오버라이드 가능
+  # experiment는 optional이며 _self_ 바로 앞에서 model/training/data를 오버라이드
   # 사용법: python src/train.py experiment=4x16gb
 
 project:

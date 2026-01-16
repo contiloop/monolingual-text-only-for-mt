@@ -19,15 +19,30 @@ def test_config(cfg: DictConfig):
     print(f"\n[Hydra Version]: {hydra_module.__version__}")
 
     # 전체 config 출력
-    print("\n[전체 Config]")
+    print("\n[전체 Config - DictConfig]")
     print(OmegaConf.to_yaml(cfg))
 
-    # Quantization 설정 확인
+    # train.py처럼 dict로 변환
+    config = OmegaConf.to_container(cfg, resolve=True)
+
+    print("\n[전체 Config - to_container 변환 후]")
+    import json
+    print(json.dumps(config, indent=2, ensure_ascii=False))
+
+    # Quantization 설정 확인 (DictConfig 직접)
     print("\n" + "=" * 80)
-    print("[Quantization 설정 확인]")
+    print("[Quantization 설정 확인 - DictConfig]")
     print("=" * 80)
 
-    quant_config = cfg.get('model', {}).get('quantization', {})
+    quant_config_direct = cfg.get('model', {}).get('quantization', {})
+    print(f"DictConfig - load_in_4bit: {quant_config_direct.get('load_in_4bit', False)}")
+
+    # Quantization 설정 확인 (dict 변환 후)
+    print("\n" + "=" * 80)
+    print("[Quantization 설정 확인 - to_container 후]")
+    print("=" * 80)
+
+    quant_config = config.get('model', {}).get('quantization', {})
 
     load_in_4bit = quant_config.get('load_in_4bit', False)
     load_in_8bit = quant_config.get('load_in_8bit', False)

@@ -89,8 +89,18 @@ def load_model(adapter_path):
     """LoRA adapter 로드"""
     print(f"  Loading adapter: {adapter_path}")
 
-    # Base model 가져오기 (캐싱)
-    base_model, tokenizer = get_base_model()
+    # Base model을 새로 복사 (adapter 간섭 방지)
+    BASE_MODEL = "K-intelligence/Midm-2.0-Base-Instruct"
+    _, tokenizer = get_base_model()  # tokenizer만 캐시에서 가져오기
+
+    # Base model 새로 로드
+    base_model = AutoModelForCausalLM.from_pretrained(
+        BASE_MODEL,
+        dtype=torch.bfloat16,
+        device_map="auto",
+        trust_remote_code=True
+    )
+    base_model.resize_token_embeddings(len(tokenizer))
 
     # LoRA adapter 로드
     model = PeftModel.from_pretrained(base_model, adapter_path)
@@ -107,7 +117,10 @@ def load_model(adapter_path):
 def denoise(model, tokenizer, noisy_text):
     """Denoising"""
     prompt = f"{noisy_text} {tokenizer.eos_token}"
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024).to(model.device)
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=1024)
+
+    # token_type_ids 제거 (LLaMA 계열은 사용 안함)
+    inputs = {k: v.to(model.device) for k, v in inputs.items() if k in ['input_ids', 'attention_mask']}
 
     with torch.no_grad():
         outputs = model.generate(

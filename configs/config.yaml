@@ -5,8 +5,10 @@ defaults:
   - model: midm
   - training: default
   - data: default
-  - experiment: null
   - _self_
+  - experiment: null
+  # experiment는 _self_ 다음에 와야 model/training/data를 오버라이드 가능
+  # 사용법: python src/train.py +experiment=4x16gb
 
 project:
   name: "midm-12b-financial-translation"

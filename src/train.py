@@ -553,7 +553,7 @@ class Trainer:
                 # 모델 생성 (Noisy → Clean)
                 noisy_input = f"{noisy}{self.tokenizer.eos_token}"
                 inputs = self.tokenizer(noisy_input, return_tensors='pt', truncation=True, max_length=512)
-                inputs = {k: v.to(device) for k, v in inputs.items()}
+                inputs = {k: v.to(device) for k, v in inputs.items() if k != 'token_type_ids'}
 
                 with torch.no_grad():
                     outputs = self.model.generate(
@@ -625,7 +625,7 @@ class Trainer:
             # 번역 (간단한 생성)
             prompt = f"Translate to English: {ko_text[:500]}"
             inputs = self.tokenizer(prompt, return_tensors='pt', truncation=True, max_length=512)
-            inputs = {k: v.to(device) for k, v in inputs.items()}
+            inputs = {k: v.to(device) for k, v in inputs.items() if k != 'token_type_ids'}
             
             with torch.no_grad():
                 outputs = self.model.generate(

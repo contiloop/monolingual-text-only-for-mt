@@ -126,6 +126,9 @@ class TranslationCollator:
                 prefix_length = len([denoise_token_id] + noisy_tokens + [output_token_id])
                 labels = [-100] * prefix_length + clean_tokens + [self.tokenizer.eos_token_id]
 
+                # 검증: 길이 일치 확인
+                assert len(input_ids) == len(labels), f"L_auto length mismatch: input={len(input_ids)}, labels={len(labels)}"
+
                 batch_input_ids.append(input_ids)
                 batch_labels.append(labels)
 
@@ -190,6 +193,9 @@ class TranslationCollator:
                 # Labels: [-100...] (prefix 마스킹) + {target} + <eos>
                 prefix_length = len([denoise_token_id] + source_tokens + [output_token_id])
                 labels = [-100] * prefix_length + target_tokens + [self.tokenizer.eos_token_id]
+
+                # 검증: 길이 일치 확인
+                assert len(input_ids) == len(labels), f"L_back length mismatch: input={len(input_ids)}, labels={len(labels)}"
 
                 batch_input_ids.append(input_ids)
                 batch_labels.append(labels)

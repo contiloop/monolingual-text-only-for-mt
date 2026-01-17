@@ -521,6 +521,9 @@ class Trainer:
                 prefix_length = len([denoise_token_id] + noisy_tokens + [output_token_id])
                 labels = [-100] * prefix_length + clean_tokens + [self.tokenizer.eos_token_id]
 
+                # 검증: input_ids와 labels 길이가 같은지 확인
+                assert len(input_ids) == len(labels), f"Length mismatch: input_ids={len(input_ids)}, labels={len(labels)}"
+
                 # Truncate if needed
                 max_len = self.config.get('max_length', 1024)
                 input_ids = input_ids[:max_len]

@@ -111,16 +111,20 @@ class TranslationCollator:
             batch_labels = []
 
             for noisy_inp, clean_tgt in zip(auto_inputs, auto_targets):
+                # Task tokens
+                denoise_token_id = self.tokenizer.convert_tokens_to_ids('[DENOISE]')
+                output_token_id = self.tokenizer.convert_tokens_to_ids('[OUTPUT]')
+
                 # Noisy와 Clean 각각 토크나이징
                 noisy_tokens = self.tokenizer(noisy_inp, add_special_tokens=False)['input_ids']
                 clean_tokens = self.tokenizer(clean_tgt, add_special_tokens=False)['input_ids']
 
-                # Input: [noisy] + [EOS] + [clean] + [EOS]
-                input_ids = noisy_tokens + [self.tokenizer.eos_token_id] + clean_tokens + [self.tokenizer.eos_token_id]
+                # Input: [DENOISE] {noisy} [OUTPUT] {clean} <eos>
+                input_ids = [denoise_token_id] + noisy_tokens + [output_token_id] + clean_tokens + [self.tokenizer.eos_token_id]
 
-                # Labels: [-100...] (noisy 부분 마스킹) + [clean] + [EOS]
-                noisy_length = len(noisy_tokens) + 1  # +1 for first EOS
-                labels = [-100] * noisy_length + clean_tokens + [self.tokenizer.eos_token_id]
+                # Labels: [-100...] (prefix 마스킹) + {clean} + <eos>
+                prefix_length = len([denoise_token_id] + noisy_tokens + [output_token_id])
+                labels = [-100] * prefix_length + clean_tokens + [self.tokenizer.eos_token_id]
 
                 batch_input_ids.append(input_ids)
                 batch_labels.append(labels)
@@ -172,16 +176,20 @@ class TranslationCollator:
             batch_labels = []
 
             for source_inp, target_tgt in zip(back_inputs, back_targets):
+                # Task tokens (back-translation uses same format)
+                denoise_token_id = self.tokenizer.convert_tokens_to_ids('[DENOISE]')
+                output_token_id = self.tokenizer.convert_tokens_to_ids('[OUTPUT]')
+
                 # Source와 Target 각각 토크나이징
                 source_tokens = self.tokenizer(source_inp, add_special_tokens=False)['input_ids']
                 target_tokens = self.tokenizer(target_tgt, add_special_tokens=False)['input_ids']
 
-                # Input: [source] + [EOS] + [target] + [EOS]
-                input_ids = source_tokens + [self.tokenizer.eos_token_id] + target_tokens + [self.tokenizer.eos_token_id]
+                # Input: [DENOISE] {source} [OUTPUT] {target} <eos>
+                input_ids = [denoise_token_id] + source_tokens + [output_token_id] + target_tokens + [self.tokenizer.eos_token_id]
 
-                # Labels: [-100...] (source 부분 마스킹) + [target] + [EOS]
-                source_length = len(source_tokens) + 1
-                labels = [-100] * source_length + target_tokens + [self.tokenizer.eos_token_id]
+                # Labels: [-100...] (prefix 마스킹) + {target} + <eos>
+                prefix_length = len([denoise_token_id] + source_tokens + [output_token_id])
+                labels = [-100] * prefix_length + target_tokens + [self.tokenizer.eos_token_id]
 
                 batch_input_ids.append(input_ids)
                 batch_labels.append(labels)

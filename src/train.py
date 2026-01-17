@@ -64,7 +64,7 @@ class Trainer:
         self.tokenizer = AutoTokenizer.from_pretrained(config['model']['name'])
         
         # Special Tokens 추가
-        special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>']
+        special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>', '[DENOISE]', '[OUTPUT]']
         self.tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
         
         if self.tokenizer.pad_token is None:
@@ -505,20 +505,32 @@ class Trainer:
                 noisy_text, _ = self.dataset.collator.noise_applier.apply(
                     sample.text, sample.language, sample.style_tag
                 )
-                
-                # 토크나이징
-                combined = f"{noisy_text} {self.tokenizer.eos_token} {sample.text}"
-                enc = self.tokenizer(
-                    combined,
-                    truncation=True,
-                    max_length=self.config.get('max_length', 1024),
-                    return_tensors='pt'
-                )
-                
-                input_ids = enc.input_ids.to(device)
-                attention_mask = enc.attention_mask.to(device)
-                labels = input_ids.clone()
-                
+
+                # Task tokens
+                denoise_token_id = self.tokenizer.convert_tokens_to_ids('[DENOISE]')
+                output_token_id = self.tokenizer.convert_tokens_to_ids('[OUTPUT]')
+
+                # Tokenize noisy and clean separately
+                noisy_tokens = self.tokenizer(noisy_text, add_special_tokens=False)['input_ids']
+                clean_tokens = self.tokenizer(sample.text, add_special_tokens=False)['input_ids']
+
+                # Input: [DENOISE] {noisy} [OUTPUT] {clean} <eos>
+                input_ids = [denoise_token_id] + noisy_tokens + [output_token_id] + clean_tokens + [self.tokenizer.eos_token_id]
+
+                # Labels: [-100...] (prefix 마스킹) + {clean} + <eos>
+                prefix_length = len([denoise_token_id] + noisy_tokens + [output_token_id])
+                labels = [-100] * prefix_length + clean_tokens + [self.tokenizer.eos_token_id]
+
+                # Truncate if needed
+                max_len = self.config.get('max_length', 1024)
+                input_ids = input_ids[:max_len]
+                labels = labels[:max_len]
+
+                # Convert to tensors
+                input_ids = torch.tensor([input_ids]).to(device)
+                labels = torch.tensor([labels]).to(device)
+                attention_mask = torch.ones_like(input_ids).to(device)
+
                 outputs = self.model(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
@@ -551,9 +563,10 @@ class Trainer:
                 )
 
                 # 모델 생성 (Noisy → Clean)
-                noisy_input = f"{noisy}{self.tokenizer.eos_token}"
-                inputs = self.tokenizer(noisy_input, return_tensors='pt', truncation=True, max_length=512)
-                inputs = {k: v.to(device) for k, v in inputs.items() if k != 'token_type_ids'}
+                # 프롬프트: [DENOISE] {noisy} [OUTPUT]
+                prompt = f"[DENOISE] {noisy} [OUTPUT]"
+                inputs = self.tokenizer(prompt, return_tensors='pt', truncation=True, max_length=512)
+                inputs = {k: v.to(device) for k, v in inputs.items() if k in ['input_ids', 'attention_mask']}
 
                 with torch.no_grad():
                     outputs = self.model.generate(
@@ -564,10 +577,13 @@ class Trainer:
                         eos_token_id=self.tokenizer.eos_token_id
                     )
 
-                generated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-                # Noisy 부분 제거 (입력 이후만 추출)
-                if noisy in generated:
-                    generated = generated.replace(noisy, '').strip()
+                # 전체 생성 결과에서 프롬프트 이후 부분만 추출
+                full_output = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # [OUTPUT] 이후 텍스트만 추출
+                if '[OUTPUT]' in full_output:
+                    generated = full_output.split('[OUTPUT]', 1)[1].strip()
+                else:
+                    generated = full_output.replace(prompt, '').strip()
 
                 print(f"  [{i+1}] Noisy:     {noisy[:100]}...")
                 print(f"      Generated: {generated[:100]}...")

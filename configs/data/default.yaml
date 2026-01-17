@@ -67,3 +67,30 @@ sampling:
     schedule:
       - {progress: 0.3, length_ratio: [0.6, 1.8], num_preservation: 0.85}
       - {progress: 0.7, length_ratio: [0.5, 2.0], num_preservation: 0.80}
+
+# Noise Configuration
+noise:
+  total_ratio: 0.30  # 기본 노이즈 비율
+  
+  # Clean Data Mix: Identity Mapping 학습
+  clean_ratio: 0.15  # 15% 확률로 노이즈 없이 반환
+  
+  # Dynamic Noise: 과적합 방지
+  dynamic_noise: true
+  dynamic_noise_min: 0.0   # 최소 0%
+  dynamic_noise_max: 0.40  # 최대 40%
+  
+  # Noise type probabilities (합계 1.0)
+  deletion_prob: 0.10
+  filler_prob: 0.05
+  infilling_prob: 0.60  # 마스킹 위주 (핵심)
+  repetition_prob: 0.05
+  spacing_prob: 0.05
+  punctuation_prob: 0.05
+  newline_prob: 0.02
+  typo_prob: 0.08
+  asr_error_prob: 0.03
+
+# Training Loss Configuration
+training_loss:
+  diff_weight: 10.0  # Diff 위치 가중치

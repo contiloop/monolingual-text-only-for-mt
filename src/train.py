@@ -266,8 +266,8 @@ class Trainer:
         loss_dict = {}
         device = self.accelerator.device
         
-        # Diff weight (기본 10.0)
-        diff_weight = self.config.get('training', {}).get('diff_weight', 10.0)
+        # Diff weight from config
+        diff_weight = self.config.get('data', {}).get('training_loss', {}).get('diff_weight', 10.0)
         
         # ===== L_auto (Denoising) =====
         if batch.has_auto and batch.auto_input_ids is not None:

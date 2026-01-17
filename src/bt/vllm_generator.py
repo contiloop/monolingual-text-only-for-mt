@@ -184,6 +184,7 @@ def main():
     parser.add_argument("--direction", type=str, choices=["ko_to_en", "en_to_ko"], required=True)
     parser.add_argument("--glossary_file", type=str, default=None)
     parser.add_argument("--batch_size", type=int, default=100)
+    parser.add_argument("--max_samples", type=int, default=None, help="Maximum number of samples to process")
     args = parser.parse_args()
 
     glossary = None
@@ -201,7 +202,8 @@ def main():
         output_path=args.output_file,
         direction=args.direction,
         batch_size=args.batch_size,
-        glossary=glossary
+        glossary=glossary,
+        limit=args.max_samples
     )
 
 if __name__ == "__main__":

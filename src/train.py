@@ -388,7 +388,13 @@ class Trainer:
                 self.dataset.set_lback_activated(True)
                 if self.is_main:
                     print(f"\n🚀 L_back Activated at step {self.global_step}!")
-                self._run_offline_bt()
+
+                # Offline BT generation (config로 비활성화 가능)
+                if self.config['training'].get('enable_online_bt', False):
+                    self._run_offline_bt()
+                else:
+                    if self.is_main:
+                        print("   ⚠️ Online BT generation disabled (enable_online_bt=False)")
             
             # ===== Forward & Backward (manual gradient accumulation) =====
             loss, loss_dict = self.compute_loss(batch)
@@ -467,7 +473,8 @@ class Trainer:
             
             # ===== Periodic BT Generation =====
             if self.lback_active and self.global_step % 5000 == 0:
-                self._run_offline_bt()
+                if self.config['training'].get('enable_online_bt', False):
+                    self._run_offline_bt()
             
             # ===== Checkpoint =====
             if self.global_step % 1000 == 0 and self.global_step > 0:

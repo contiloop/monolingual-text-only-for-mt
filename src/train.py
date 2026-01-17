@@ -625,8 +625,9 @@ class Trainer:
             generation_samples = []
 
             for i, sample in enumerate(samples[:3]):
+                # 노이즈 적용 시 style_tag 없이 순수 텍스트만
                 noisy, _ = self.dataset.collator.noise_applier.apply(
-                    sample.text[:200], sample.language, sample.style_tag
+                    sample.text[:200], sample.language, ""  # style_tag 제외
                 )
 
                 # 모델 생성 (Noisy → Clean) - 새로운 Instruction 형식

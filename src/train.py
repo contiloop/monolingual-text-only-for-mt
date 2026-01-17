@@ -124,23 +124,35 @@ class Trainer:
         
         # Attention 구현 선택 (Flash Attention 2 > SDPA > eager)
         def get_attn_implementation():
-            # 1. Flash Attention 2 시도
+            # 1. Flash Attention 2 시도 (실제 작동 테스트)
             try:
                 import flash_attn
+                from flash_attn import flash_attn_func
+
                 # GPU가 sm_80 이상(Ampere: A100, RTX 30xx, 40xx)인지 확인
                 if torch.cuda.is_available():
                     capability = torch.cuda.get_device_capability()
                     if capability[0] >= 8:  # sm_80 이상
-                        return 'flash_attention_2', "Flash Attention 2"
+                        # 실제 작동 테스트 (간단한 텐서로)
+                        try:
+                            test_q = torch.randn(1, 1, 1, 64, dtype=torch.float16, device='cuda')
+                            test_k = torch.randn(1, 1, 1, 64, dtype=torch.float16, device='cuda')
+                            test_v = torch.randn(1, 1, 1, 64, dtype=torch.float16, device='cuda')
+                            _ = flash_attn_func(test_q, test_k, test_v)
+                            del test_q, test_k, test_v
+                            torch.cuda.empty_cache()
+                            return 'flash_attention_2', "⚡ Flash Attention 2"
+                        except Exception as e:
+                            return 'sdpa', f"⚠️ SDPA (Flash Attention runtime error: {str(e)[:50]})"
                     else:
                         return 'sdpa', f"SDPA (GPU sm_{capability[0]}{capability[1]} < sm_80)"
-            except ImportError:
+            except ImportError as e:
                 pass
-            
+
             # 2. SDPA fallback (PyTorch 2.0+)
             if hasattr(torch.nn.functional, 'scaled_dot_product_attention'):
-                return 'sdpa', "SDPA (Flash Attention not installed)"
-            
+                return 'sdpa', "⚡ SDPA (Flash Attention not installed)"
+
             # 3. Eager fallback
             return 'eager', "Eager attention (legacy)"
         

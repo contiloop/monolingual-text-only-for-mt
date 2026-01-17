@@ -160,10 +160,15 @@ def create_dataloader(
     noise_config = config.get('noise', {})
     noise_applier = NoiseApplier(NoiseConfig(
         total_ratio=noise_config.get('total_ratio', 0.15),
-        deletion_prob=noise_config.get('deletion_prob', 0.3),
-        filler_prob=noise_config.get('filler_prob', 0.2),
-        infilling_prob=noise_config.get('infilling_prob', 0.4),
-        shuffling_prob=noise_config.get('shuffling_prob', 0.1)
+        deletion_prob=noise_config.get('deletion_prob', 0.15),
+        filler_prob=noise_config.get('filler_prob', 0.15),
+        infilling_prob=noise_config.get('infilling_prob', 0.20),
+        repetition_prob=noise_config.get('repetition_prob', 0.10),
+        spacing_prob=noise_config.get('spacing_prob', 0.15),
+        punctuation_prob=noise_config.get('punctuation_prob', 0.10),
+        newline_prob=noise_config.get('newline_prob', 0.05),
+        typo_prob=noise_config.get('typo_prob', 0.10),
+        asr_error_prob=noise_config.get('asr_error_prob', 0.05)
     ))
     
     # 5. Collator

@@ -522,30 +522,37 @@ class Trainer:
         return self.hard_buffer.loss_threshold if len(self.hard_buffer) > 100 else 5.0
     
     def _print_bt_instructions(self):
-        """BT 생성 안내 출력"""
+        """BT 생성 안내 출력 (양방향)"""
         ckpt_path = resolve_path(self.config['project']['output_dir']) / f"ckpt_{self.global_step}"
-        bt_output = resolve_path(self.config['data']['bt_cache_dir']) / f"bt_{self.global_step}.jsonl"
+        bt_ko_to_en = resolve_path(self.config['data']['bt_cache_dir']) / f"bt_{self.global_step}_ko_to_en.jsonl"
+        bt_en_to_ko = resolve_path(self.config['data']['bt_cache_dir']) / f"bt_{self.global_step}_en_to_ko.jsonl"
 
-        print(f"\n📋 INSTRUCTIONS FOR BT GENERATION:")
-        print(f"\n▶ Option 1: Fast (vLLM, requires separate GPU or stop training)")
-        print(f"\n   python src/bt/vllm_generator.py \\")
-        print(f"       --base_model {self.config['model']['name']} \\")
-        print(f"       --adapter {ckpt_path} \\")
-        print(f"       --input_file {resolve_path(self.config['data']['ko_processed_path'])} \\")
-        print(f"       --output_file {bt_output} \\")
-        print(f"       --direction ko_to_en \\")
-        print(f"       --max_samples 10000")
-        print(f"\n▶ Option 2: Slow but Simple (Transformers, no vLLM needed)")
+        print(f"\n📋 INSTRUCTIONS FOR BIDIRECTIONAL BT GENERATION:")
+        print(f"\n⚠️  Generate BOTH directions for best results!\n")
+
+        print(f"▶ Step 1: Korean → English")
         print(f"\n   python src/bt/transformers_generator.py \\")
         print(f"       --base_model {self.config['model']['name']} \\")
         print(f"       --adapter {ckpt_path} \\")
         print(f"       --input_file {resolve_path(self.config['data']['ko_processed_path'])} \\")
-        print(f"       --output_file {bt_output} \\")
+        print(f"       --output_file {bt_ko_to_en} \\")
         print(f"       --direction ko_to_en \\")
         print(f"       --max_samples 10000 \\")
-        print(f"       --load_in_4bit")
-        print(f"\n▶ Resume training after BT generation:")
+        print(f"       --batch_size 64")
+
+        print(f"\n▶ Step 2: English → Korean")
+        print(f"\n   python src/bt/transformers_generator.py \\")
+        print(f"       --base_model {self.config['model']['name']} \\")
+        print(f"       --adapter {ckpt_path} \\")
+        print(f"       --input_file {resolve_path(self.config['data']['en_processed_path'])} \\")
+        print(f"       --output_file {bt_en_to_ko} \\")
+        print(f"       --direction en_to_ko \\")
+        print(f"       --max_samples 10000 \\")
+        print(f"       --batch_size 64")
+
+        print(f"\n▶ Step 3: Resume training")
         print(f"\n   python src/train.py training.resume_from_checkpoint=\"{ckpt_path}\"")
+        print(f"\n💡 Tip: Run both BT commands in parallel using tmux/screen if you have enough GPU memory!")
         print()
 
     def _run_offline_bt(self):

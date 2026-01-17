@@ -79,10 +79,20 @@ class FinancialTranslationDataset(IterableDataset):
         self.lback_activated = activated
         self.composer.set_lback_activated(activated)
     
-    def reload_bt_cache(self, path: str):
-        """BT 캐시 리로드"""
+    def reload_bt_cache(self, path):
+        """BT 캐시 리로드 (단일 파일 또는 여러 파일)"""
+        from pathlib import Path
+
         self.pseudo_buffer.clear()
-        self.pseudo_buffer.load_from_file(path)
+
+        # path가 리스트면 여러 파일, 아니면 단일 파일
+        if isinstance(path, list):
+            for p in path:
+                if Path(p).exists():
+                    self.pseudo_buffer.load_from_file(p)
+        else:
+            if Path(path).exists():
+                self.pseudo_buffer.load_from_file(path)
     
     def add_hard_example(self, text: str, language: str, style_tag: str, loss: float):
         """Hard Example 추가"""

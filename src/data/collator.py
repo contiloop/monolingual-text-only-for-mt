@@ -100,48 +100,89 @@ class TranslationCollator:
         if auto_samples:
             result.has_auto = True
             auto_inputs, auto_targets = zip(*auto_samples)
-            
+
             # Causal LM: "noisy_input → original_target" 형식으로 연결
-            # 포맷: [noisy] [SEP] [target]
-            combined_texts = [
-                f"{inp} {self.tokenizer.eos_token} {tgt}"
-                for inp, tgt in zip(auto_inputs, auto_targets)
-            ]
-            
-            enc = self.tokenizer(
-                combined_texts,
-                padding=True,
-                truncation=True,
-                max_length=self.max_length,
-                return_tensors='pt'
-            )
-            
-            result.auto_input_ids = enc.input_ids
-            result.auto_attention_mask = enc.attention_mask
-            # Labels = input_ids 복사 (Causal LM 표준)
-            result.auto_labels = enc.input_ids.clone()
+            # 포맷: [noisy] [EOS] [target]
+            batch_input_ids = []
+            batch_labels = []
+
+            for noisy_inp, clean_tgt in zip(auto_inputs, auto_targets):
+                # Noisy와 Clean 각각 토크나이징
+                noisy_tokens = self.tokenizer(noisy_inp, add_special_tokens=False)['input_ids']
+                clean_tokens = self.tokenizer(clean_tgt, add_special_tokens=False)['input_ids']
+
+                # Input: [noisy] + [EOS] + [clean] + [EOS]
+                input_ids = noisy_tokens + [self.tokenizer.eos_token_id] + clean_tokens + [self.tokenizer.eos_token_id]
+
+                # Labels: [-100...] (noisy 부분 마스킹) + [clean] + [EOS]
+                noisy_length = len(noisy_tokens) + 1  # +1 for first EOS
+                labels = [-100] * noisy_length + clean_tokens + [self.tokenizer.eos_token_id]
+
+                batch_input_ids.append(input_ids)
+                batch_labels.append(labels)
+
+            # Padding
+            max_len = min(max(len(ids) for ids in batch_input_ids), self.max_length)
+            padded_input_ids = []
+            padded_labels = []
+            padded_attention_mask = []
+
+            for input_ids, labels in zip(batch_input_ids, batch_labels):
+                # Truncate
+                input_ids = input_ids[:max_len]
+                labels = labels[:max_len]
+
+                # Pad
+                pad_len = max_len - len(input_ids)
+                padded_input_ids.append(input_ids + [self.tokenizer.pad_token_id] * pad_len)
+                padded_labels.append(labels + [-100] * pad_len)
+                padded_attention_mask.append([1] * len(input_ids) + [0] * pad_len)
+
+            result.auto_input_ids = torch.tensor(padded_input_ids)
+            result.auto_attention_mask = torch.tensor(padded_attention_mask)
+            result.auto_labels = torch.tensor(padded_labels)
         
         if back_samples:
             result.has_back = True
             back_inputs, back_targets = zip(*back_samples)
-            
-            # 같은 방식으로 연결
-            combined_texts = [
-                f"{inp} {self.tokenizer.eos_token} {tgt}"
-                for inp, tgt in zip(back_inputs, back_targets)
-            ]
-            
-            enc = self.tokenizer(
-                combined_texts,
-                padding=True,
-                truncation=True,
-                max_length=self.max_length,
-                return_tensors='pt'
-            )
-            
-            result.back_input_ids = enc.input_ids
-            result.back_attention_mask = enc.attention_mask
-            result.back_labels = enc.input_ids.clone()
+
+            # Back-translation도 동일하게 labels 마스킹
+            batch_input_ids = []
+            batch_labels = []
+
+            for source_inp, target_tgt in zip(back_inputs, back_targets):
+                # Source와 Target 각각 토크나이징
+                source_tokens = self.tokenizer(source_inp, add_special_tokens=False)['input_ids']
+                target_tokens = self.tokenizer(target_tgt, add_special_tokens=False)['input_ids']
+
+                # Input: [source] + [EOS] + [target] + [EOS]
+                input_ids = source_tokens + [self.tokenizer.eos_token_id] + target_tokens + [self.tokenizer.eos_token_id]
+
+                # Labels: [-100...] (source 부분 마스킹) + [target] + [EOS]
+                source_length = len(source_tokens) + 1
+                labels = [-100] * source_length + target_tokens + [self.tokenizer.eos_token_id]
+
+                batch_input_ids.append(input_ids)
+                batch_labels.append(labels)
+
+            # Padding
+            max_len = min(max(len(ids) for ids in batch_input_ids), self.max_length)
+            padded_input_ids = []
+            padded_labels = []
+            padded_attention_mask = []
+
+            for input_ids, labels in zip(batch_input_ids, batch_labels):
+                input_ids = input_ids[:max_len]
+                labels = labels[:max_len]
+
+                pad_len = max_len - len(input_ids)
+                padded_input_ids.append(input_ids + [self.tokenizer.pad_token_id] * pad_len)
+                padded_labels.append(labels + [-100] * pad_len)
+                padded_attention_mask.append([1] * len(input_ids) + [0] * pad_len)
+
+            result.back_input_ids = torch.tensor(padded_input_ids)
+            result.back_attention_mask = torch.tensor(padded_attention_mask)
+            result.back_labels = torch.tensor(padded_labels)
         
         return result
     

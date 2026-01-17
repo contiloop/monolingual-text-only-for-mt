@@ -1,0 +1,11 @@
+#!/bin/bash
+echo "=== Checking checkpoint structure ==="
+echo ""
+echo "Files in outputs/final:"
+ls -lh outputs/final/ 2>/dev/null || echo "No checkpoint found"
+echo ""
+echo "=== config.json content (first 30 lines) ==="
+head -30 outputs/final/config.json 2>/dev/null || echo "No config.json"
+echo ""
+echo "=== adapter_config.json (if exists) ==="
+cat outputs/final/adapter_config.json 2>/dev/null || echo "Not a LoRA checkpoint"

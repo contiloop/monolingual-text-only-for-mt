@@ -114,19 +114,21 @@ class TranslationCollator:
             batch_labels = []
 
             for noisy_inp, clean_tgt in zip(auto_inputs, auto_targets):
-                # Task tokens
-                denoise_token_id = self.tokenizer.convert_tokens_to_ids('[DENOISE]')
-                output_token_id = self.tokenizer.convert_tokens_to_ids('[OUTPUT]')
-
-                # Noisy와 Clean 각각 토크나이징
+                # 명시적 Instruction 프롬프트 (Step 2)
+                instruction_prefix = "Fix the errors in the following text: "
+                instruction_suffix = "\n\nCorrected version: "
+                
+                # 토크나이징
+                prefix_tokens = self.tokenizer(instruction_prefix, add_special_tokens=False)['input_ids']
                 noisy_tokens = self.tokenizer(noisy_inp, add_special_tokens=False)['input_ids']
+                suffix_tokens = self.tokenizer(instruction_suffix, add_special_tokens=False)['input_ids']
                 clean_tokens = self.tokenizer(clean_tgt, add_special_tokens=False)['input_ids']
 
-                # Input: [DENOISE] {noisy} [OUTPUT] {clean} <eos>
-                input_ids = [denoise_token_id] + noisy_tokens + [output_token_id] + clean_tokens + [self.tokenizer.eos_token_id]
+                # Input: {instruction_prefix} {noisy} {instruction_suffix} {clean} <eos>
+                input_ids = prefix_tokens + noisy_tokens + suffix_tokens + clean_tokens + [self.tokenizer.eos_token_id]
 
                 # Labels: [-100...] (prefix 마스킹) + {clean} + <eos>
-                prefix_length = len([denoise_token_id] + noisy_tokens + [output_token_id])
+                prefix_length = len(prefix_tokens) + len(noisy_tokens) + len(suffix_tokens)
                 labels = [-100] * prefix_length + clean_tokens + [self.tokenizer.eos_token_id]
 
                 # 검증: 길이 일치 확인

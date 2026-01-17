@@ -8,20 +8,20 @@ from dataclasses import dataclass
 @dataclass
 class NoiseConfig:
     """노이즈 설정"""
-    total_ratio: float = 0.15  # 노이즈 비율 증가
+    total_ratio: float = 0.30  # 15% → 30%로 상향
 
-    # 기본 노이즈 타입 확률
-    deletion_prob: float = 0.15
-    filler_prob: float = 0.15
-    infilling_prob: float = 0.20
-    repetition_prob: float = 0.10  # 단어 반복
-    spacing_prob: float = 0.15     # 띄어쓰기 오류
-    punctuation_prob: float = 0.10 # 구두점 오류
-    newline_prob: float = 0.05     # 줄바꿈 오류
-    typo_prob: float = 0.10        # 오타
+    # 기본 노이즈 타입 확률 (infilling 위주로 변경)
+    deletion_prob: float = 0.10
+    filler_prob: float = 0.05
+    infilling_prob: float = 0.60  # 마스킹 비중 압도적으로 높임 (핵심)
+    repetition_prob: float = 0.05
+    spacing_prob: float = 0.05
+    punctuation_prob: float = 0.05
+    newline_prob: float = 0.02
+    typo_prob: float = 0.08
 
     # 추가 노이즈
-    asr_error_prob: float = 0.05   # ASR 오류
+    asr_error_prob: float = 0.03
 
 class NoiseApplier:
     """노이즈 적용기 (Text + ASR Noise)"""

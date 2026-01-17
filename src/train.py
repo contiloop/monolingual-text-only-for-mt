@@ -261,21 +261,54 @@ class Trainer:
         return self.accelerator.device
         
     def compute_loss(self, batch):
-        """L_auto와 L_back Loss 계산"""
+        """L_auto와 L_back Loss 계산 (+ Diff 위치 가중치)"""
         total_loss = 0.0
         loss_dict = {}
         device = self.accelerator.device
         
+        # Diff weight (기본 10.0)
+        diff_weight = self.config.get('training', {}).get('diff_weight', 10.0)
+        
         # ===== L_auto (Denoising) =====
         if batch.has_auto and batch.auto_input_ids is not None:
+            input_ids = batch.auto_input_ids.to(device)
+            attention_mask = batch.auto_attention_mask.to(device)
+            labels = batch.auto_labels.to(device)
+            
+            # Forward (labels=None으로 logits만 받음)
             outputs = self.model(
-                input_ids=batch.auto_input_ids.to(device),
-                attention_mask=batch.auto_attention_mask.to(device),
-                labels=batch.auto_labels.to(device)
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=None
             )
-            l_auto = outputs.loss
+            
+            # Shift for causal LM
+            logits = outputs.logits
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+            shift_input = input_ids[..., 1:].contiguous()
+            
+            # Per-token cross entropy
+            loss_fn = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-100)
+            per_token_loss = loss_fn(
+                shift_logits.view(-1, shift_logits.size(-1)),
+                shift_labels.view(-1)
+            )
+            
+            # Diff mask: labels가 -100이 아니고, input과 다른 위치 = 노이즈 복원 필요
+            valid_mask = (shift_labels.view(-1) != -100)
+            diff_mask = valid_mask & (shift_input.view(-1) != shift_labels.view(-1))
+            
+            # Weight: diff 위치에 10배
+            weights = torch.ones_like(per_token_loss)
+            weights[diff_mask] = diff_weight
+            
+            # Weighted mean (valid_mask 기준)
+            l_auto = (per_token_loss * weights).sum() / valid_mask.sum().clamp(min=1)
+            
             total_loss += l_auto
             loss_dict['l_auto'] = l_auto.item()
+            loss_dict['diff_ratio'] = diff_mask.float().mean().item()  # 모니터링용
         
         # ===== L_back (Translation) =====
         if batch.has_back and batch.back_input_ids is not None and self.lback_active:
@@ -487,15 +520,25 @@ class Trainer:
         self.model.eval()
         val_losses = []
         
-        # Validation pool에서 샘플링
+        # Validation pool에서 언어별 균등 샘플링
         val_pool = self.dataset.pool.val_pool
         if not val_pool:
             self.model.train()
             return
         
-        # 샘플 수 제한
+        # 언어별로 분리
         import random
-        samples = random.sample(val_pool, min(num_samples, len(val_pool)))
+        ko_samples = [s for s in val_pool if s.language == 'ko']
+        en_samples = [s for s in val_pool if s.language == 'en']
+        
+        # 각 언어에서 절반씩 샘플링
+        half = num_samples // 2
+        samples = []
+        if ko_samples:
+            samples.extend(random.sample(ko_samples, min(half, len(ko_samples))))
+        if en_samples:
+            samples.extend(random.sample(en_samples, min(half, len(en_samples))))
+        random.shuffle(samples)
         
         device = self.accelerator.device
         
@@ -506,19 +549,21 @@ class Trainer:
                     sample.text, sample.language, sample.style_tag
                 )
 
-                # Task tokens
-                denoise_token_id = self.tokenizer.convert_tokens_to_ids('[DENOISE]')
-                output_token_id = self.tokenizer.convert_tokens_to_ids('[OUTPUT]')
+                # 명시적 Instruction 프롬프트 (collator와 동일)
+                instruction_prefix = "Fix the errors in the following text: "
+                instruction_suffix = "\n\nCorrected version: "
 
-                # Tokenize noisy and clean separately
+                # Tokenize
+                prefix_tokens = self.tokenizer(instruction_prefix, add_special_tokens=False)['input_ids']
                 noisy_tokens = self.tokenizer(noisy_text, add_special_tokens=False)['input_ids']
+                suffix_tokens = self.tokenizer(instruction_suffix, add_special_tokens=False)['input_ids']
                 clean_tokens = self.tokenizer(sample.text, add_special_tokens=False)['input_ids']
 
-                # Input: [DENOISE] {noisy} [OUTPUT] {clean} <eos>
-                input_ids = [denoise_token_id] + noisy_tokens + [output_token_id] + clean_tokens + [self.tokenizer.eos_token_id]
+                # Input: {prefix} {noisy} {suffix} {clean} <eos>
+                input_ids = prefix_tokens + noisy_tokens + suffix_tokens + clean_tokens + [self.tokenizer.eos_token_id]
 
                 # Labels: [-100...] (prefix 마스킹) + {clean} + <eos>
-                prefix_length = len([denoise_token_id] + noisy_tokens + [output_token_id])
+                prefix_length = len(prefix_tokens) + len(noisy_tokens) + len(suffix_tokens)
                 labels = [-100] * prefix_length + clean_tokens + [self.tokenizer.eos_token_id]
 
                 # 검증: input_ids와 labels 길이가 같은지 확인
@@ -545,16 +590,14 @@ class Trainer:
         
         if self.is_main:
             print(f"\n📊 Validation Loss: {avg_val_loss:.4f}")
-            
-            eval_log = {"val_loss": avg_val_loss, "step": self.global_step}
-            
+
+            eval_log = {"val_loss": avg_val_loss}
+
             # BLEU 평가 (병렬 코퍼스 있으면)
             bleu_score = self._evaluate_translation_bleu(num_samples=20)
             if bleu_score is not None:
                 eval_log["bleu_ko_to_en"] = bleu_score
                 print(f"🌐 Translation BLEU (ko→en): {bleu_score:.2f}")
-            
-            wandb.log(eval_log)
             
             # Qualitative: 3개 샘플 denoising 결과 출력 + Generation
             print("📝 Qualitative Samples:")
@@ -565,11 +608,10 @@ class Trainer:
                     sample.text[:200], sample.language, sample.style_tag
                 )
 
-                # 모델 생성 (Noisy → Clean)
-                # 프롬프트: [DENOISE] {noisy} [OUTPUT]
-                prompt = f"[DENOISE] {noisy} [OUTPUT]"
+                # 모델 생성 (Noisy → Clean) - 새로운 Instruction 형식
+                prompt = f"Fix the errors in the following text: {noisy}\n\nCorrected version: "
                 inputs = self.tokenizer(prompt, return_tensors='pt', truncation=True, max_length=512)
-                inputs = {k: v.to(device) for k, v in inputs.items() if k in ['input_ids', 'attention_mask']}
+                inputs = {k: v.to(device) for k, v in inputs.items() if k != 'token_type_ids'}
 
                 with torch.no_grad():
                     outputs = self.model.generate(
@@ -581,11 +623,10 @@ class Trainer:
                     )
 
                 # 전체 생성 결과에서 프롬프트 이후 부분만 추출
-                # skip_special_tokens=False로 style tag 유지
-                full_output = self.tokenizer.decode(outputs[0], skip_special_tokens=False)
-                # [OUTPUT] 이후 텍스트만 추출
-                if '[OUTPUT]' in full_output:
-                    generated = full_output.split('[OUTPUT]', 1)[1].strip()
+                full_output = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # "Corrected version: " 이후 텍스트만 추출
+                if 'Corrected version: ' in full_output:
+                    generated = full_output.split('Corrected version: ', 1)[1].strip()
                 else:
                     generated = full_output.replace(prompt, '').strip()
 
@@ -607,7 +648,10 @@ class Trainer:
                 table = wandb.Table(columns=["Noisy", "Generated", "Original"])
                 for s in generation_samples:
                     table.add_data(s["noisy"], s["generated"], s["original"])
-                wandb.log({"denoising_samples": table, "step": self.global_step})
+                eval_log["denoising_samples"] = table
+
+            # 한 번에 로깅 (step 명시)
+            wandb.log(eval_log, step=self.global_step)
 
         self.model.train()
         return avg_val_loss

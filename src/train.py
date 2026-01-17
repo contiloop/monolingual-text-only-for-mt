@@ -541,15 +541,52 @@ class Trainer:
             
             wandb.log(eval_log)
             
-            # Qualitative: 3개 샘플 denoising 결과 출력
+            # Qualitative: 3개 샘플 denoising 결과 출력 + Generation
             print("📝 Qualitative Samples:")
+            generation_samples = []
+
             for i, sample in enumerate(samples[:3]):
                 noisy, _ = self.dataset.collator.noise_applier.apply(
                     sample.text[:200], sample.language, sample.style_tag
                 )
-                print(f"  [{i+1}] Noisy: {noisy[:100]}...")
-                print(f"      Original: {sample.text[:100]}...")
-        
+
+                # 모델 생성 (Noisy → Clean)
+                noisy_input = f"{noisy}{self.tokenizer.eos_token}"
+                inputs = self.tokenizer(noisy_input, return_tensors='pt', truncation=True, max_length=512)
+                inputs = {k: v.to(device) for k, v in inputs.items()}
+
+                with torch.no_grad():
+                    outputs = self.model.generate(
+                        **inputs,
+                        max_new_tokens=200,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id
+                    )
+
+                generated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # Noisy 부분 제거 (입력 이후만 추출)
+                if noisy in generated:
+                    generated = generated.replace(noisy, '').strip()
+
+                print(f"  [{i+1}] Noisy:     {noisy[:100]}...")
+                print(f"      Generated: {generated[:100]}...")
+                print(f"      Original:  {sample.text[:100]}...")
+
+                generation_samples.append({
+                    "noisy": noisy[:200],
+                    "generated": generated[:200],
+                    "original": sample.text[:200]
+                })
+
+            # WandB Table로 기록
+            if generation_samples:
+                import wandb
+                table = wandb.Table(columns=["Noisy", "Generated", "Original"])
+                for s in generation_samples:
+                    table.add_data(s["noisy"], s["generated"], s["original"])
+                wandb.log({"denoising_samples": table, "step": self.global_step})
+
         self.model.train()
         return avg_val_loss
     

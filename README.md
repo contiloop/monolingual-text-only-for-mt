@@ -12,9 +12,16 @@ uv venv .venv && source .venv/bin/activate
 uv pip install -e .
 
 # Flash Attention 2 설치 (선택사항, GPU 서버 권장)
-# - 요구사항: CUDA 11.8+, GPU Compute Capability 8.0+ (Ampere 이상: A100, RTX 30xx/40xx/50xx)
+# - 요구사항: CUDA 11.6+, GPU Compute Capability 8.0+ (Ampere 이상: A100, RTX 30xx/40xx/50xx)
 # - 효과: 학습 속도 20-30% 향상
-pip install flash-attn --no-build-isolation
+# - 주의: CUDA 버전에 맞춰 소스에서 빌드 (10-20분 소요)
+
+# CUDA 버전 확인
+nvcc --version
+
+# Flash Attention 설치 (현재 CUDA 버전에 맞춰 자동 빌드)
+pip install ninja packaging wheel
+MAX_JOBS=4 pip install flash-attn --no-build-isolation
 
 # 2. WandB 로그인
 wandb login
@@ -49,6 +56,11 @@ echo "machine api.wandb.ai login user password YOUR_API_KEY" > ~/.netrc
 ```bash
 cd /path/to/local/data/processed
 tar -czvf processed_data.tar.gz *.jsonl
+```
+
+**로컬 Mac에서 공개키 확인**
+```
+cat ~/.ssh/id_rsa.pub
 ```
 
 **서버로 전송:**

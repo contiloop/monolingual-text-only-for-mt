@@ -581,12 +581,16 @@ class Trainer:
                     )
 
                 # 전체 생성 결과에서 프롬프트 이후 부분만 추출
-                full_output = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+                # skip_special_tokens=False로 style tag 유지
+                full_output = self.tokenizer.decode(outputs[0], skip_special_tokens=False)
                 # [OUTPUT] 이후 텍스트만 추출
                 if '[OUTPUT]' in full_output:
                     generated = full_output.split('[OUTPUT]', 1)[1].strip()
                 else:
                     generated = full_output.replace(prompt, '').strip()
+
+                # <eos> 토큰 제거
+                generated = generated.replace(self.tokenizer.eos_token, '').strip()
 
                 print(f"  [{i+1}] Noisy:     {noisy[:100]}...")
                 print(f"      Generated: {generated[:100]}...")

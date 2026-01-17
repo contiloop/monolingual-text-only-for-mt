@@ -9,7 +9,7 @@ warmup_ratio: 0.05
 eval_interval: 500
 
 # Resume from checkpoint (optional)
-# resume_from_checkpoint: "./outputs/ckpt_5000"
+resume_from_checkpoint: null  # Set to checkpoint path to resume
 
 early_stopping:
   enabled: false  # 기본값 off, 필요시 CLI에서 true로

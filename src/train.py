@@ -443,8 +443,9 @@ class Trainer:
             if self.global_step % eval_interval == 0 and self.global_step > 0:
                 val_loss = self._evaluate(num_samples=100)
                 
-                # Early Stopping 체크
-                if early_stop_enabled and val_loss is not None:
+                # Early Stopping 체크 (nan이면 스킵)
+                import math
+                if early_stop_enabled and val_loss is not None and not math.isnan(val_loss):
                     if val_loss < best_val_loss - min_delta:
                         best_val_loss = val_loss
                         patience_counter = 0
@@ -601,9 +602,12 @@ class Trainer:
                     attention_mask=attention_mask,
                     labels=labels
                 )
-                val_losses.append(outputs.loss.item())
+                # NaN 필터링: nan이 아닌 값만 추가
+                loss_val = outputs.loss.item()
+                if not (loss_val != loss_val):  # nan check (nan != nan is True)
+                    val_losses.append(loss_val)
         
-        avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else 0
+        avg_val_loss = sum(val_losses) / len(val_losses) if val_losses else float('nan')
         
         if self.is_main:
             print(f"\n📊 Validation Loss: {avg_val_loss:.4f}")

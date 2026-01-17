@@ -70,16 +70,19 @@ class TranslationCollator:
                 original = sample.text
                 style_tag = sample.style_tag or ''
                 language = sample.language or 'ko'
-                
+
                 # 노이즈 적용
                 noisy, noise_type = self.noise_applier.apply(
                     original, language, style_tag
                 )
-                
+
+                # Original에도 style tag 추가 (noisy와 동일한 형식)
+                original_with_style = f"{style_tag} {original}".strip() if style_tag else original
+
                 # Glossary 주입 (선택)
                 noisy_with_glossary = self._inject_glossary(noisy, language)
-                
-                auto_samples.append((noisy_with_glossary, original))
+
+                auto_samples.append((noisy_with_glossary, original_with_style))
                 
             elif sample.source_type == SourceType.PSEUDO:
                 # L_back: BT 데이터

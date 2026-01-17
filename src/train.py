@@ -288,27 +288,32 @@ class Trainer:
             shift_labels = labels[..., 1:].contiguous()
             shift_input = input_ids[..., 1:].contiguous()
             
-            # Per-token cross entropy
+            # Per-token cross entropy (reduction='none')
             loss_fn = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-100)
             per_token_loss = loss_fn(
                 shift_logits.view(-1, shift_logits.size(-1)),
                 shift_labels.view(-1)
             )
             
-            # Diff mask: labels가 -100이 아니고, input과 다른 위치 = 노이즈 복원 필요
-            valid_mask = (shift_labels.view(-1) != -100)
-            diff_mask = valid_mask & (shift_input.view(-1) != shift_labels.view(-1))
+            # Reshape back for masking
+            per_token_loss = per_token_loss.view(shift_labels.shape)
             
-            # Weight: diff 위치에 10배
+            # Diff mask: labels가 -100이 아니고, input과 다른 위치
+            valid_mask = (shift_labels != -100)
+            diff_mask = (shift_input != shift_labels) & valid_mask
+            
+            # Weight: diff 위치에 가중치 적용
             weights = torch.ones_like(per_token_loss)
             weights[diff_mask] = diff_weight
             
-            # Weighted mean (valid_mask 기준)
-            l_auto = (per_token_loss * weights).sum() / valid_mask.sum().clamp(min=1)
+            # Critical Fix: Weighted Mean - weights.sum()으로 나눠야 scale 안정화
+            weighted_sum = (per_token_loss * weights * valid_mask).sum()
+            normalization = (weights * valid_mask).sum() + 1e-8  # 0 나누기 방지
+            l_auto = weighted_sum / normalization
             
             total_loss += l_auto
             loss_dict['l_auto'] = l_auto.item()
-            loss_dict['diff_ratio'] = diff_mask.float().mean().item()  # 모니터링용
+            loss_dict['diff_ratio'] = diff_mask.float().sum().item() / valid_mask.float().sum().clamp(min=1).item()
         
         # ===== L_back (Translation) =====
         if batch.has_back and batch.back_input_ids is not None and self.lback_active:

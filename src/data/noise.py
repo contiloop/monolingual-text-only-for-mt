@@ -8,7 +8,15 @@ from dataclasses import dataclass
 @dataclass
 class NoiseConfig:
     """노이즈 설정"""
-    total_ratio: float = 0.30  # 15% → 30%로 상향
+    total_ratio: float = 0.30  # 기본 노이즈 비율
+    
+    # Clean Data Mix: 10-20% 확률로 노이즈 없이 반환 (Identity Mapping 학습)
+    clean_ratio: float = 0.15  # 15% 확률로 clean 데이터
+    
+    # Dynamic Noise Scheduling: 노이즈 비율 랜덤화 (과적합 방지)
+    dynamic_noise: bool = True
+    dynamic_noise_min: float = 0.0   # 최소 0%
+    dynamic_noise_max: float = 0.40  # 최대 40%
 
     # 기본 노이즈 타입 확률 (infilling 위주로 변경)
     deletion_prob: float = 0.10
@@ -57,6 +65,10 @@ class NoiseApplier:
         Returns: (noisy_text, noise_type)
         """
         
+        # 0. Clean Data Mix: 일정 확률로 노이즈 없이 반환 (Identity Mapping 학습)
+        if random.random() < self.config.clean_ratio:
+            return text, "clean"  # 노이즈 없이 원본 그대로 반환
+        
         # 1. 스타일 태그 분리 (태그는 노이즈 안 줌)
         content = text
         if style_tag and text.startswith(style_tag):
@@ -68,20 +80,29 @@ class NoiseApplier:
         if protected_indices is None:
             protected_indices = self._get_protected_indices(tokens, language)
         
-        # 3. ASR 노이즈 적용 (선택적)
+        # 3. Dynamic Noise Scheduling: 노이즈 비율 랜덤화
+        if self.config.dynamic_noise:
+            current_ratio = random.uniform(
+                self.config.dynamic_noise_min,
+                self.config.dynamic_noise_max
+            )
+        else:
+            current_ratio = self.config.total_ratio
+        
+        # 4. ASR 노이즈 적용 (선택적)
         if random.random() < self.config.asr_error_prob:
             tokens = self._apply_asr_noise(tokens, language, protected_indices)
         
-        # 4. 일반 Noising (Deletion, Infilling, etc)
+        # 5. 일반 Noising (Deletion, Infilling, etc)
         candidates = [i for i in range(len(tokens)) if i not in protected_indices]
-        num_noise = max(1, int(len(candidates) * self.config.total_ratio))
+        num_noise = max(1, int(len(candidates) * current_ratio))
         
         noise_type = "none"
-        if candidates:
+        if candidates and current_ratio > 0:
             noise_type = self._select_noise_type()
             tokens = self._apply_general_noise(tokens, candidates, num_noise, noise_type, language)
             
-        # 5. 재조립
+        # 6. 재조립
         noisy_content = " ".join(tokens)
         final_text = f"{style_tag} {noisy_content}" if style_tag else noisy_content
         

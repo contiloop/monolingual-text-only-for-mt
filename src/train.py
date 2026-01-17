@@ -64,7 +64,7 @@ class Trainer:
         self.tokenizer = AutoTokenizer.from_pretrained(config['model']['name'])
         
         # Special Tokens 추가
-        special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>', '[DENOISE]', '[OUTPUT]']
+        special_tokens = ['<|formal|>', '<|casual|>', '<|sep|>', '[DENOISE]', '[OUTPUT]', '[MASK]']
         self.tokenizer.add_special_tokens({'additional_special_tokens': special_tokens})
         
         if self.tokenizer.pad_token is None:

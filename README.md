@@ -172,6 +172,90 @@ configs/
 
 ---
 
+## Denoising 학습 전략
+
+이 프로젝트는 **Monolingual Denoising**을 통해 번역 모델을 학습합니다. 노이즈가 섞인 텍스트를 원본으로 복원하는 과정에서 언어의 구조와 표현력을 학습합니다.
+
+### 목표
+- **L_auto (Denoising)**: 노이즈 → 원본 복원
+- **L_back (Back-Translation)**: 번역 품질 향상 (Phase 2)
+
+### 핵심 전략
+
+#### 1. Infilling 위주 노이즈 (60%)
+```yaml
+# configs/data/default.yaml
+noise:
+  infilling_prob: 0.60  # [MASK] 토큰으로 대체 - 복사 불가능
+```
+- **Why**: 단순 typo는 복사해도 85% 정확 → trivial copy 학습
+- **Solution**: `[MASK]`로 마스킹하면 문맥 추론 강제
+
+#### 2. Dynamic Noise Scheduling (0-40%)
+```yaml
+noise:
+  dynamic_noise: true
+  dynamic_noise_min: 0.0
+  dynamic_noise_max: 0.40
+```
+- **Why**: 고정 비율 → 모델이 "N% 채우면 됨" 패턴 암기
+- **Solution**: 매번 랜덤 비율 → 문맥 기반 판단 학습
+
+#### 3. Clean Data Mix (15%)
+```yaml
+noise:
+  clean_ratio: 0.15  # 15% 확률로 노이즈 없는 데이터
+```
+- **Why**: 노이즈만 보면 "모든 문장은 고장남" 편향
+- **Solution**: 멀쩡한 문장도 섞어서 Identity Mapping 학습
+
+#### 4. Diff-Weighted Loss (10x)
+```yaml
+training_loss:
+  diff_weight: 10.0  # 노이즈 복원 위치에 10배 가중치
+```
+- **Why**: 복사 성공(85%) vs 복원 실패(15%) 동등 취급
+- **Solution**: 틀린 위치에 10배 페널티 → 복원에 집중
+
+#### 5. Instruction Prompt
+```
+Fix the errors in the following text: {noisy}
+
+Corrected version: {clean}
+```
+- **Why**: `[DENOISE] ... [OUTPUT]` 토큰은 task 의미 불분명
+- **Solution**: 자연어 지시문으로 task 명확화
+
+### Config 전체 예시
+```yaml
+# configs/data/default.yaml
+noise:
+  total_ratio: 0.30
+  clean_ratio: 0.15
+  dynamic_noise: true
+  dynamic_noise_min: 0.0
+  dynamic_noise_max: 0.40
+  infilling_prob: 0.60
+
+training_loss:
+  diff_weight: 10.0
+```
+
+### 테스트 방법
+```bash
+# Noise 적용 확인
+python -c "
+from src.data.noise import NoiseApplier, NoiseConfig
+applier = NoiseApplier(NoiseConfig())
+for i in range(5):
+    text = 'This is a test sentence for denoising.'
+    noisy, noise_type = applier.apply(text, 'en', '')
+    print(f'[{noise_type}] {noisy}')
+"
+```
+
+---
+
 ## 프로젝트 구조
 ```
 .

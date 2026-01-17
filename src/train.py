@@ -306,10 +306,22 @@ class Trainer:
             weights = torch.ones_like(per_token_loss)
             weights[diff_mask] = diff_weight
             
-            # Critical Fix: Weighted Mean - weights.sum()으로 나눠야 scale 안정화
+            # NaN/Inf protection: 문제 있는 값 마스킹
+            nan_mask = torch.isnan(per_token_loss) | torch.isinf(per_token_loss)
+            if nan_mask.any():
+                per_token_loss = per_token_loss.clone()
+                per_token_loss[nan_mask] = 0.0
+                valid_mask = valid_mask & ~nan_mask  # nan 위치 제외
+            
+            # Weighted Mean
             weighted_sum = (per_token_loss * weights * valid_mask).sum()
-            normalization = (weights * valid_mask).sum() + 1e-8  # 0 나누기 방지
+            normalization = (weights * valid_mask).sum() + 1e-8
             l_auto = weighted_sum / normalization
+            
+            # Fallback: 여전히 nan이면 기본 loss 사용
+            if torch.isnan(l_auto):
+                outputs_fallback = self.model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+                l_auto = outputs_fallback.loss if outputs_fallback.loss is not None else torch.tensor(0.0, device=device)
             
             total_loss += l_auto
             loss_dict['l_auto'] = l_auto.item()

@@ -111,7 +111,10 @@ class TransformersBTGenerator:
             padding=True,
             truncation=True,
             max_length=512,
-        ).to(self.device)
+        )
+
+        # Remove token_type_ids if present (not used by this model)
+        inputs = {k: v.to(self.device) for k, v in inputs.items() if k != 'token_type_ids'}
 
         # Generate
         with torch.no_grad():

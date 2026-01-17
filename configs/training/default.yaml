@@ -11,8 +11,11 @@ eval_interval: 500
 # Resume from checkpoint (optional)
 resume_from_checkpoint: null  # Set to checkpoint path to resume
 
-# Online BT generation during training (requires extra GPU memory)
-enable_online_bt: false  # Set to true to enable real-time BT generation
+# BT generation mode:
+# - 'pause': Stop training at BT milestones, print instructions (default)
+# - 'online': Generate BT during training (requires extra GPU memory)
+# - 'manual': Skip BT generation, continue training
+bt_generation_mode: 'pause'
 
 early_stopping:
   enabled: false  # 기본값 off, 필요시 CLI에서 true로

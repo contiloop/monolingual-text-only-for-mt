@@ -137,6 +137,51 @@ python src/train.py +experiment=debug
 python src/train.py +experiment=96gb training.batch_size=8 training.steps=100000
 ```
 
+### Iterative Back-Translation Workflow
+
+이 프로젝트는 **iterative BT (back-translation)** 방식을 사용합니다:
+
+1. **Phase 1 (0~5000 steps)**: L_auto만으로 denoising 학습
+2. **Step 5000**: 학습 자동 중단 → BT 데이터 생성 필요
+3. **Phase 2 (5000~10000)**: L_auto + L_back 동시 학습
+4. **Step 10000**: 다시 중단 → BT 재생성 (더 좋은 품질)
+5. 반복...
+
+#### BT Generation Mode 설정
+
+```yaml
+# configs/training/default.yaml
+bt_generation_mode: 'pause'  # 기본값: 학습 중단 후 수동 생성
+# 'online': 학습 중 자동 생성 (GPU 메모리 충분할 때만)
+# 'manual': BT 스킵하고 계속 학습
+```
+
+#### 일반적인 워크플로우
+
+**1단계: 초기 학습 시작**
+```bash
+python src/train.py
+# Step 5000에 자동 중단되며 BT generation 명령어 출력됨
+```
+
+**2단계: BT 데이터 생성** (학습 중단된 상태에서)
+```bash
+# 출력된 명령어 실행 (예시)
+python src/bt/vllm_generator.py \
+    --base_model K-intelligence/Midm-2.0-Base-Instruct \
+    --adapter ./outputs/ckpt_5000 \
+    --input_file ./data/processed/ko_processed.jsonl \
+    --output_file ./data/bt_cache/bt_5000.jsonl \
+    --direction ko_to_en \
+    --max_samples 10000
+```
+
+**3단계: 학습 재개**
+```bash
+python src/train.py training.resume_from_checkpoint="./outputs/ckpt_5000"
+# Step 10000에 다시 중단 → BT 재생성 → 반복
+```
+
 ### WandB 모니터링
 
 학습 중 다음을 실시간으로 확인할 수 있습니다:

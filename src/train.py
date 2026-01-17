@@ -389,12 +389,25 @@ class Trainer:
                 if self.is_main:
                     print(f"\n🚀 L_back Activated at step {self.global_step}!")
 
-                # Offline BT generation (config로 비활성화 가능)
-                if self.config['training'].get('enable_online_bt', False):
+                # BT generation 방식 선택
+                bt_mode = self.config['training'].get('bt_generation_mode', 'manual')
+
+                if bt_mode == 'online':
+                    # GPU 메모리가 충분한 경우 (학습 중 BT 생성)
                     self._run_offline_bt()
-                else:
+                elif bt_mode == 'pause':
+                    # 학습 중단하고 수동 BT 생성 요구
                     if self.is_main:
-                        print("   ⚠️ Online BT generation disabled (enable_online_bt=False)")
+                        print("\n" + "="*80)
+                        print("⏸️  PAUSING FOR BT GENERATION")
+                        print("="*80)
+                        self._save_checkpoint()
+                        self._print_bt_instructions()
+                        print("="*80)
+                    raise KeyboardInterrupt("Paused for BT generation")
+                else:  # 'manual' or 'skip'
+                    if self.is_main:
+                        print("   ℹ️  BT generation skipped (mode: manual)")
             
             # ===== Forward & Backward (manual gradient accumulation) =====
             loss, loss_dict = self.compute_loss(batch)
@@ -472,9 +485,20 @@ class Trainer:
                             break
             
             # ===== Periodic BT Generation =====
-            if self.lback_active and self.global_step % 5000 == 0:
-                if self.config['training'].get('enable_online_bt', False):
+            if self.lback_active and self.global_step % 5000 == 0 and self.global_step > 0:
+                bt_mode = self.config['training'].get('bt_generation_mode', 'manual')
+
+                if bt_mode == 'online':
                     self._run_offline_bt()
+                elif bt_mode == 'pause':
+                    if self.is_main:
+                        print("\n" + "="*80)
+                        print(f"⏸️  PAUSING FOR PERIODIC BT GENERATION (Step {self.global_step})")
+                        print("="*80)
+                        self._save_checkpoint()
+                        self._print_bt_instructions()
+                        print("="*80)
+                    raise KeyboardInterrupt("Paused for periodic BT generation")
             
             # ===== Checkpoint =====
             if self.global_step % 1000 == 0 and self.global_step > 0:
@@ -497,11 +521,29 @@ class Trainer:
         """Hard Example 임계값"""
         return self.hard_buffer.loss_threshold if len(self.hard_buffer) > 100 else 5.0
     
+    def _print_bt_instructions(self):
+        """BT 생성 안내 출력"""
+        ckpt_path = resolve_path(self.config['project']['output_dir']) / f"ckpt_{self.global_step}"
+        bt_output = resolve_path(self.config['data']['bt_cache_dir']) / f"bt_{self.global_step}.jsonl"
+
+        print(f"\n📋 INSTRUCTIONS FOR BT GENERATION:")
+        print(f"\n1. Run BT generation script:")
+        print(f"\n   python src/bt/vllm_generator.py \\")
+        print(f"       --base_model {self.config['model']['name']} \\")
+        print(f"       --adapter {ckpt_path} \\")
+        print(f"       --input_file {resolve_path(self.config['data']['ko_processed_path'])} \\")
+        print(f"       --output_file {bt_output} \\")
+        print(f"       --direction ko_to_en \\")
+        print(f"       --max_samples 10000")
+        print(f"\n2. Resume training:")
+        print(f"\n   python src/train.py training.resume_from_checkpoint=\"{ckpt_path}\"")
+        print()
+
     def _run_offline_bt(self):
         """Offline BT (메인 프로세스만)"""
         if not self.is_main:
             return
-            
+
         print(f"\n⏸️ BT Generation at step {self.global_step}...")
         ckpt_path = self._save_checkpoint()
         

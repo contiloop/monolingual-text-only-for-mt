@@ -581,7 +581,6 @@ class Trainer:
 
             # WandB Table로 기록
             if generation_samples:
-                import wandb
                 table = wandb.Table(columns=["Noisy", "Generated", "Original"])
                 for s in generation_samples:
                     table.add_data(s["noisy"], s["generated"], s["original"])

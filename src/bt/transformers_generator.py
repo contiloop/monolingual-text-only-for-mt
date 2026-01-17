@@ -51,6 +51,9 @@ class TransformersBTGenerator:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
+        # Set padding side to left for decoder-only models
+        self.tokenizer.padding_side = 'left'
+
         # Model loading
         model_kwargs = {
             "trust_remote_code": True,
@@ -132,7 +135,7 @@ class TransformersBTGenerator:
         generated_texts = []
         for i, output in enumerate(outputs):
             # Remove prompt from output
-            prompt_length = inputs.input_ids[i].shape[0]
+            prompt_length = inputs['input_ids'][i].shape[0]
             generated = self.tokenizer.decode(
                 output[prompt_length:], skip_special_tokens=True
             )

@@ -44,12 +44,13 @@ def load_model(base_model: str, checkpoint_path: str):
 
 def translate(model, tokenizer, text: str, direction: str = "en_to_ko", max_new_tokens: int = 1024):
     """번역 수행"""
+    # Better prompt format: text first, then instruction
     if direction == "ko_to_en":
-        prompt = f"다음 한국어를 영어로 번역하세요:\n{text}\n번역:"
-        split_key = "번역:"
+        prompt = f"{text}\n\n위 한국어 텍스트를 영어로 번역하세요:"
+        split_key = "영어로 번역하세요:"
     else:  # en_to_ko
-        prompt = f"Translate the following English to Korean:\n{text}\nTranslation:"
-        split_key = "Translation:"
+        prompt = f"{text}\n\n위 영어 텍스트를 한국어로 번역하세요:"
+        split_key = "한국어로 번역하세요:"
 
     inputs = tokenizer(prompt, return_tensors='pt', max_length=4096, truncation=True)
     inputs = {k: v.to(model.device) for k, v in inputs.items() if k != 'token_type_ids'}

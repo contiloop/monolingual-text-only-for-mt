@@ -19,12 +19,12 @@ dependencies = [
     "sacrebleu",
     "pandas",
     "hydra-core>=1.3.0",
-    "omegaconf>=2.3.0"
+    "omegaconf>=2.3.0",
+    "vllm>=0.2.7"
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "black", "ruff"]
-vllm = ["vllm>=0.2.7"]
 flash = ["flash-attn>=2.0.0"]
 
 [tool.uv]

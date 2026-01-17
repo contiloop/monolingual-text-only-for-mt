@@ -242,14 +242,19 @@ class Trainer:
         self.optimizer, self.scheduler = self.accelerator.prepare(
             self.optimizer, self.scheduler
         )
-        
+
         # ===== PromptBuilder =====
         prompt_config = config.get('prompt', {})
         self.prompt_builder = PromptBuilder(prompt_config)
-        
+
         # ===== State =====
         self.global_step = 0
         self.lback_active = False
+
+        # ===== Resume from Checkpoint (if provided) =====
+        resume_path = config.get('training', {}).get('resume_from_checkpoint', None)
+        if resume_path:
+            self._load_checkpoint(resume_path)
     
     @property
     def is_main(self):
@@ -513,23 +518,77 @@ class Trainer:
         except subprocess.CalledProcessError as e:
             print(f"⚠️ BT Generation failed: {e}")
     
+    def _load_checkpoint(self, checkpoint_path: str):
+        """체크포인트에서 resume"""
+        ckpt_path = resolve_path(checkpoint_path)
+
+        if not ckpt_path.exists():
+            raise ValueError(f"Checkpoint not found: {ckpt_path}")
+
+        if self.is_main:
+            print(f"📂 Loading checkpoint from {ckpt_path}")
+
+        # Training state 로드 (optimizer, scheduler, global_step, lback_active)
+        training_state_path = ckpt_path / "training_state.pt"
+        if training_state_path.exists():
+            training_state = torch.load(str(training_state_path), map_location=self.device)
+
+            self.global_step = training_state['global_step']
+            self.lback_active = training_state['lback_active']
+
+            # Optimizer/Scheduler state 로드 (None이면 스킵)
+            if training_state.get('optimizer_state_dict') is not None:
+                self.optimizer.load_state_dict(training_state['optimizer_state_dict'])
+                if self.is_main:
+                    print("   ✓ Optimizer state restored")
+            else:
+                if self.is_main:
+                    print("   ⚠️ Optimizer will be re-initialized (no saved state)")
+
+            if training_state.get('scheduler_state_dict') is not None:
+                self.scheduler.load_state_dict(training_state['scheduler_state_dict'])
+                if self.is_main:
+                    print("   ✓ Scheduler state restored")
+            else:
+                if self.is_main:
+                    print("   ⚠️ Scheduler will be re-initialized (no saved state)")
+
+            # Dataset state 동기화
+            self.dataset.set_step(self.global_step)
+            self.dataset.set_lback_activated(self.lback_active)
+
+            if self.is_main:
+                print(f"✅ Resumed from step {self.global_step}, L_back={'Active' if self.lback_active else 'Inactive'}")
+        else:
+            if self.is_main:
+                print(f"⚠️ No training_state.pt found, only loading model weights")
+
     def _save_checkpoint(self, final=False):
         """체크포인트 저장 (unwrap 필요)"""
         self.accelerator.wait_for_everyone()
-        
+
         if not self.is_main:
             return None
-            
+
         output_dir = resolve_path(self.config['project']['output_dir'])
         output_dir.mkdir(parents=True, exist_ok=True)
-        
+
         ckpt_path = output_dir / ("final" if final else f"ckpt_{self.global_step}")
-        
+
         # unwrap_model로 원본 모델 추출
         unwrapped_model = self.accelerator.unwrap_model(self.model)
         unwrapped_model.save_pretrained(str(ckpt_path))
         self.tokenizer.save_pretrained(str(ckpt_path))
-        
+
+        # Training state 저장 (optimizer, scheduler, global_step, lback_active)
+        training_state = {
+            'global_step': self.global_step,
+            'lback_active': self.lback_active,
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'scheduler_state_dict': self.scheduler.state_dict(),
+        }
+        torch.save(training_state, str(ckpt_path / "training_state.pt"))
+
         print(f"💾 Saved: {ckpt_path}")
         return str(ckpt_path)
     

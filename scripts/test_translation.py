@@ -21,6 +21,7 @@ def load_model(base_model: str, checkpoint_path: str):
 
     tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
     tokenizer.padding_side = 'left'
+    tokenizer.truncation_side = 'left'  # Truncate from left, keep recent context
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -36,7 +37,8 @@ def load_model(base_model: str, checkpoint_path: str):
     model = model.merge_and_unload()
     model.eval()
 
-    print('Model ready!\n')
+    print(f'Model ready! Max position embeddings: {model.config.max_position_embeddings}')
+    print()
     return model, tokenizer
 
 
@@ -49,7 +51,7 @@ def translate(model, tokenizer, text: str, direction: str = "en_to_ko", max_new_
         prompt = f"Translate the following English to Korean:\n{text}\nTranslation:"
         split_key = "Translation:"
 
-    inputs = tokenizer(prompt, return_tensors='pt', max_length=2048, truncation=True)
+    inputs = tokenizer(prompt, return_tensors='pt', max_length=4096, truncation=True)
     inputs = {k: v.to(model.device) for k, v in inputs.items() if k != 'token_type_ids'}
 
     with torch.no_grad():

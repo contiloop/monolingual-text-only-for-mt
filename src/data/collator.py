@@ -96,7 +96,11 @@ class TranslationCollator:
         
         # 토크나이징
         result = CollatedBatch(source_types=source_types)
-        
+
+        # 디버깅: 첫 번째 배치에서만 샘플 로깅
+        if not hasattr(self, '_logged_sample'):
+            self._logged_sample = False
+
         if auto_samples:
             result.has_auto = True
             auto_inputs, auto_targets = zip(*auto_samples)
@@ -141,6 +145,23 @@ class TranslationCollator:
             result.auto_input_ids = torch.tensor(padded_input_ids)
             result.auto_attention_mask = torch.tensor(padded_attention_mask)
             result.auto_labels = torch.tensor(padded_labels)
+
+            # 첫 번째 배치 샘플 로깅
+            if not self._logged_sample and len(auto_inputs) > 0:
+                print("\n" + "="*80)
+                print("📊 [DENOISING SAMPLE - L_auto]")
+                print("="*80)
+                print(f"Noisy Input:  {auto_inputs[0][:200]}...")
+                print(f"Clean Target: {auto_targets[0][:200]}...")
+                print(f"\n🔢 Token lengths:")
+                print(f"  Noisy tokens: {len(batch_input_ids[0][:len(noisy_tokens)])} tokens")
+                print(f"  Clean tokens: {len(batch_labels[0]) - batch_labels[0].count(-100)} tokens")
+                print(f"\n🎯 Labels masking:")
+                print(f"  Input IDs:  {batch_input_ids[0][:50]}...")
+                print(f"  Labels:     {batch_labels[0][:50]}...")
+                print(f"  (-100 = masked, only clean text contributes to loss)")
+                print("="*80 + "\n")
+                self._logged_sample = True
         
         if back_samples:
             result.has_back = True
@@ -183,6 +204,23 @@ class TranslationCollator:
             result.back_input_ids = torch.tensor(padded_input_ids)
             result.back_attention_mask = torch.tensor(padded_attention_mask)
             result.back_labels = torch.tensor(padded_labels)
+
+            # 첫 번째 배치 샘플 로깅 (back-translation)
+            if not self._logged_sample and len(back_inputs) > 0:
+                print("\n" + "="*80)
+                print("📊 [BACK-TRANSLATION SAMPLE - L_back]")
+                print("="*80)
+                print(f"Source Input: {back_inputs[0][:200]}...")
+                print(f"Target:       {back_targets[0][:200]}...")
+                print(f"\n🔢 Token lengths:")
+                print(f"  Source tokens: {len(batch_input_ids[0][:len(source_tokens)])} tokens")
+                print(f"  Target tokens: {len(batch_labels[0]) - batch_labels[0].count(-100)} tokens")
+                print(f"\n🎯 Labels masking:")
+                print(f"  Input IDs:  {batch_input_ids[0][:50]}...")
+                print(f"  Labels:     {batch_labels[0][:50]}...")
+                print(f"  (-100 = masked, only target text contributes to loss)")
+                print("="*80 + "\n")
+                self._logged_sample = True
         
         return result
     

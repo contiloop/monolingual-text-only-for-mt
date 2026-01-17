@@ -151,7 +151,11 @@ class VLLMBTGenerator:
             return
 
         print(f"Generating BT for {len(texts)} samples (Direction: {direction})...")
-        
+
+        # Create output directory if needed
+        from pathlib import Path
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
         # 배치 처리
         all_results = []
         for i in tqdm(range(0, len(texts), batch_size)):

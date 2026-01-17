@@ -166,6 +166,10 @@ class TransformersBTGenerator:
 
         print(f"Generating BT for {len(texts)} samples (Direction: {direction})...")
 
+        # Create output directory if needed
+        from pathlib import Path
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+
         # Process in batches
         output_file = open(output_path, "w", encoding="utf-8")
 

@@ -118,22 +118,33 @@ mv korean_english_parallel_dataset korean_english_parallel
 
 이 프로젝트는 Hydra의 **Experiment** 패턴을 사용하여 하드웨어 설정을 관리합니다.
 
-```bash
-# 4× RTX 4080/5080 16GB (4-bit QLoRA)
-torchrun --nproc_per_node=4 src/train.py experiment=4x16gb
+### 주요 학습 명령어
 
-# A100 40-80GB (8-bit)
-torchrun --nproc_per_node=4 src/train.py experiment=a100
+```bash
+# 단일 A100 80GB (Full precision bf16, 200K steps)
+python src/train.py +experiment=96gb training.early_stopping.enabled=false
+
+# 4× RTX 4080/5080 16GB (4-bit QLoRA)
+torchrun --nproc_per_node=4 src/train.py +experiment=4x16gb
+
+# A100 40-80GB 멀티 GPU (8-bit)
+torchrun --nproc_per_node=4 src/train.py +experiment=a100
 
 # 디버깅 모드 (1 step 실행, 저장 안 함)
-python src/train.py experiment=debug
-
-# 단일 GPU 4-bit
-python src/train.py experiment=single_4bit
+python src/train.py +experiment=debug
 
 # CLI에서 값 override (실험 config 위에 덮어쓰기)
-python src/train.py experiment=4x16gb training.batch_size=2
+python src/train.py +experiment=96gb training.batch_size=8 training.steps=100000
 ```
+
+### WandB 모니터링
+
+학습 중 다음을 실시간으로 확인할 수 있습니다:
+- **Loss 그래프**: Training/Validation loss 추이
+- **Denoising Samples**: Noisy → Generated → Original 비교 (Table)
+- **BLEU Score**: 번역 품질 (병렬 코퍼스 사용 시)
+
+WandB 프로젝트: `https://wandb.ai/YOUR_USERNAME/midm-12b-financial-translation`
 
 ---
 

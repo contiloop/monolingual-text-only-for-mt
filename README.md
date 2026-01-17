@@ -165,8 +165,15 @@ python src/train.py
 ```
 
 **2단계: BT 데이터 생성** (학습 중단된 상태에서)
+
+학습이 자동 중단되면 두 가지 옵션이 출력됩니다:
+
+**Option A: vLLM (빠름, 10K 샘플 ~10-20분)**
 ```bash
-# 출력된 명령어 실행 (예시)
+# vLLM 설치 필요 (한 번만)
+pip install vllm
+
+# BT 생성
 python src/bt/vllm_generator.py \
     --base_model K-intelligence/Midm-2.0-Base-Instruct \
     --adapter ./outputs/ckpt_5000 \
@@ -174,6 +181,19 @@ python src/bt/vllm_generator.py \
     --output_file ./data/bt_cache/bt_5000.jsonl \
     --direction ko_to_en \
     --max_samples 10000
+```
+
+**Option B: Transformers (느림 ~1-2시간, 추가 설치 불필요)**
+```bash
+# vLLM 없이 작동
+python src/bt/transformers_generator.py \
+    --base_model K-intelligence/Midm-2.0-Base-Instruct \
+    --adapter ./outputs/ckpt_5000 \
+    --input_file ./data/processed/ko_processed.jsonl \
+    --output_file ./data/bt_cache/bt_5000.jsonl \
+    --direction ko_to_en \
+    --max_samples 10000 \
+    --load_in_4bit  # 메모리 절약
 ```
 
 **3단계: 학습 재개**

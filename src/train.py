@@ -527,7 +527,7 @@ class Trainer:
         bt_output = resolve_path(self.config['data']['bt_cache_dir']) / f"bt_{self.global_step}.jsonl"
 
         print(f"\n📋 INSTRUCTIONS FOR BT GENERATION:")
-        print(f"\n1. Run BT generation script:")
+        print(f"\n▶ Option 1: Fast (vLLM, requires separate GPU or stop training)")
         print(f"\n   python src/bt/vllm_generator.py \\")
         print(f"       --base_model {self.config['model']['name']} \\")
         print(f"       --adapter {ckpt_path} \\")
@@ -535,7 +535,16 @@ class Trainer:
         print(f"       --output_file {bt_output} \\")
         print(f"       --direction ko_to_en \\")
         print(f"       --max_samples 10000")
-        print(f"\n2. Resume training:")
+        print(f"\n▶ Option 2: Slow but Simple (Transformers, no vLLM needed)")
+        print(f"\n   python src/bt/transformers_generator.py \\")
+        print(f"       --base_model {self.config['model']['name']} \\")
+        print(f"       --adapter {ckpt_path} \\")
+        print(f"       --input_file {resolve_path(self.config['data']['ko_processed_path'])} \\")
+        print(f"       --output_file {bt_output} \\")
+        print(f"       --direction ko_to_en \\")
+        print(f"       --max_samples 10000 \\")
+        print(f"       --load_in_4bit")
+        print(f"\n▶ Resume training after BT generation:")
         print(f"\n   python src/train.py training.resume_from_checkpoint=\"{ckpt_path}\"")
         print()
 

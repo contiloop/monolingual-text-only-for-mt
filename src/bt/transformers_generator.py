@@ -23,7 +23,6 @@ Usage:
 
 import json
 import argparse
-from pathlib import Path
 from typing import List, Optional
 from tqdm import tqdm
 import torch
@@ -44,7 +43,10 @@ class TransformersBTGenerator:
         self.device = device
 
         print(f"Loading tokenizer from {base_model_path}...")
-        self.tokenizer = AutoTokenizer.from_pretrained(base_model_path)
+
+        # Load tokenizer from adapter if available (contains added special tokens)
+        tokenizer_path = lora_adapter_path if lora_adapter_path else base_model_path
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -74,6 +76,11 @@ class TransformersBTGenerator:
         self.model = AutoModelForCausalLM.from_pretrained(
             base_model_path, **model_kwargs
         )
+
+        # Resize embeddings to match tokenizer vocab size
+        if len(self.tokenizer) != self.model.config.vocab_size:
+            print(f"Resizing embeddings: {self.model.config.vocab_size} -> {len(self.tokenizer)}")
+            self.model.resize_token_embeddings(len(self.tokenizer))
 
         # Load LoRA adapter if provided
         if lora_adapter_path:

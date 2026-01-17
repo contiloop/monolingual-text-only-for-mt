@@ -8,12 +8,20 @@ from dataclasses import dataclass
 @dataclass
 class NoiseConfig:
     """노이즈 설정"""
-    total_ratio: float = 0.1
-    deletion_prob: float = 0.30
-    filler_prob: float = 0.25
-    infilling_prob: float = 0.35
-    shuffling_prob: float = 0.10
-    asr_error_prob: float = 0.05  # ASR 노이즈 확률 추가
+    total_ratio: float = 0.15  # 노이즈 비율 증가
+
+    # 기본 노이즈 타입 확률
+    deletion_prob: float = 0.15
+    filler_prob: float = 0.15
+    infilling_prob: float = 0.20
+    repetition_prob: float = 0.10  # 단어 반복
+    spacing_prob: float = 0.15     # 띄어쓰기 오류
+    punctuation_prob: float = 0.10 # 구두점 오류
+    newline_prob: float = 0.05     # 줄바꿈 오류
+    typo_prob: float = 0.10        # 오타
+
+    # 추가 노이즈
+    asr_error_prob: float = 0.05   # ASR 오류
 
 class NoiseApplier:
     """노이즈 적용기 (Text + ASR Noise)"""
@@ -115,33 +123,158 @@ class NoiseApplier:
         return result
 
     def _select_noise_type(self) -> str:
-        types = ["deletion", "filler", "infilling", "shuffling"]
-        probs = [self.config.deletion_prob, self.config.filler_prob, self.config.infilling_prob, self.config.shuffling_prob]
+        types = ["deletion", "filler", "infilling", "repetition", "spacing", "punctuation", "newline", "typo"]
+        probs = [
+            self.config.deletion_prob,
+            self.config.filler_prob,
+            self.config.infilling_prob,
+            self.config.repetition_prob,
+            self.config.spacing_prob,
+            self.config.punctuation_prob,
+            self.config.newline_prob,
+            self.config.typo_prob
+        ]
         return random.choices(types, weights=probs, k=1)[0]
-        
+
     def _apply_general_noise(self, tokens, candidates, num, n_type, lang):
         if n_type == "deletion":
+            # 단어 삭제
             del_idc = set(random.sample(candidates, min(num, len(candidates))))
             return [t for i, t in enumerate(tokens) if i not in del_idc]
+
         elif n_type == "filler":
+            # Filler words 추가 (um, uh, 어, 음 등)
             fillers = self.FILLERS_KO if lang == 'ko' else self.FILLERS_EN
             pos_list = sorted(random.sample(candidates, min(num, len(candidates))), reverse=True)
             res = tokens.copy()
             for p in pos_list:
                 res.insert(p, random.choice(fillers))
             return res
+
         elif n_type == "infilling":
+            # [MASK] 토큰으로 대체
             if len(candidates) < 2: return tokens
             start = random.choice(candidates[:-1])
-            length = min(random.randint(1, 3), len(candidates)) # span 1~3
+            length = min(random.randint(1, 3), len(candidates))
             res = tokens.copy()
             res[start:start+length] = [self.MASK_TOKEN]
             return res
-        elif n_type == "shuffling":
-            # 문장 셔플링은 전처리 단계에서 하는게 나을수도 있으나 여기서 간단히 구현
-            # 문장 종결자 기준 스플릿은 복잡하므로 여기선 토큰 단위 셔플은 지양하고 패스 (혹은 n-gram 셔플)
-             return tokens # Placeholder
+
+        elif n_type == "repetition":
+            # 단어 반복 (like like, 그 그 등)
+            pos_list = random.sample(candidates, min(num, len(candidates)))
+            res = tokens.copy()
+            for p in sorted(pos_list, reverse=True):
+                res.insert(p + 1, res[p])  # 다음 위치에 같은 단어 삽입
+            return res
+
+        elif n_type == "spacing":
+            # 띄어쓰기 오류
+            return self._apply_spacing_noise(tokens, candidates, num)
+
+        elif n_type == "punctuation":
+            # 구두점 오류 (추가/삭제/중복)
+            return self._apply_punctuation_noise(tokens, num)
+
+        elif n_type == "newline":
+            # 줄바꿈 추가 (문장 중간에)
+            if len(candidates) < 2: return tokens
+            pos_list = random.sample(candidates, min(2, len(candidates)))
+            res = tokens.copy()
+            for p in sorted(pos_list, reverse=True):
+                res.insert(p, "\n")
+            return res
+
+        elif n_type == "typo":
+            # 오타 (키보드 인접 문자, 누락, 중복)
+            return self._apply_typo_noise(tokens, candidates, num, lang)
+
         return tokens
+
+    def _apply_spacing_noise(self, tokens, candidates, num):
+        """띄어쓰기 오류"""
+        if len(tokens) < 2: return tokens
+        pos_list = random.sample(candidates, min(num, len(candidates)))
+        res = []
+
+        for i, token in enumerate(tokens):
+            if i in pos_list and i + 1 < len(tokens):
+                # 다음 단어와 붙이기
+                res.append(token + tokens[i + 1])
+                tokens[i + 1] = ""  # 다음 토큰 비우기
+            elif token:  # 빈 문자열 제외
+                res.append(token)
+
+        return res
+
+    def _apply_punctuation_noise(self, tokens, num):
+        """구두점 오류"""
+        punctuations = [',', '.', '!', '?', ';', ':', '...', ',,', '..']
+        res = tokens.copy()
+
+        for _ in range(min(num, len(tokens))):
+            action = random.choice(['add', 'duplicate', 'wrong'])
+            pos = random.randint(0, len(res) - 1)
+
+            if action == 'add':
+                # 랜덤 위치에 구두점 추가
+                res.insert(pos, random.choice(punctuations))
+            elif action == 'duplicate' and pos < len(res):
+                # 마침표 중복 (.. 또는 ...)
+                if res[pos] in ['.', ',', '!', '?']:
+                    res[pos] = res[pos] * random.randint(2, 3)
+            elif action == 'wrong' and pos < len(res):
+                # 잘못된 구두점 사용
+                if res[pos] in ['.', ',', '!', '?']:
+                    res[pos] = random.choice(punctuations)
+
+        return res
+
+    def _apply_typo_noise(self, tokens, candidates, num, lang):
+        """오타 생성"""
+        # 키보드 인접 문자 맵 (QWERTY)
+        keyboard_neighbors = {
+            'a': 'qwsz', 'b': 'vghn', 'c': 'xdfv', 'd': 'erfcxs',
+            'e': 'wrdsf', 'f': 'rtgvcd', 'g': 'tyhbvf', 'h': 'yujnbg',
+            'i': 'uojkl', 'j': 'uikmnh', 'k': 'iolmj', 'l': 'opk',
+            'm': 'njk', 'n': 'bhjm', 'o': 'iplk', 'p': 'ol',
+            'q': 'wa', 'r': 'etfd', 's': 'wedxza', 't': 'ryfg',
+            'u': 'yihj', 'v': 'cfgb', 'w': 'qase', 'x': 'zsdc',
+            'y': 'tugh', 'z': 'asx'
+        }
+
+        res = tokens.copy()
+        pos_list = random.sample(candidates, min(num, len(candidates)))
+
+        for pos in pos_list:
+            if pos >= len(res) or len(res[pos]) < 2:
+                continue
+
+            word = res[pos]
+            typo_type = random.choice(['substitute', 'duplicate', 'omit'])
+
+            if typo_type == 'substitute':
+                # 인접 키로 대체
+                char_pos = random.randint(0, len(word) - 1)
+                char = word[char_pos].lower()
+                if char in keyboard_neighbors:
+                    new_char = random.choice(keyboard_neighbors[char])
+                    word = word[:char_pos] + new_char + word[char_pos + 1:]
+
+            elif typo_type == 'duplicate':
+                # 문자 중복 (typo -> typpo)
+                char_pos = random.randint(0, len(word) - 1)
+                word = word[:char_pos] + word[char_pos] + word[char_pos:]
+
+            elif typo_type == 'omit':
+                # 문자 누락 (word -> wrd)
+                if len(word) > 2:
+                    char_pos = random.randint(0, len(word) - 1)
+                    word = word[:char_pos] + word[char_pos + 1:]
+
+            res[pos] = word
+
+        return res
     
     def update_config(self, progress: float, curriculum: Dict = None):
         """커리큘럼에 따라 노이즈 설정 업데이트"""

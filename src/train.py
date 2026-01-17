@@ -870,10 +870,19 @@ def main(cfg: DictConfig):
     """
     # DictConfig를 dict로 변환 (기존 코드 호환성)
     config = OmegaConf.to_container(cfg, resolve=True)
-    
+
     # 학습 시작
     trainer = Trainer(config)
-    trainer.train()
+    try:
+        trainer.train()
+    except KeyboardInterrupt as e:
+        # BT generation pause는 정상 종료
+        if "Paused for" in str(e):
+            print("\n✅ Training paused successfully for BT generation")
+            return
+        else:
+            # 실제 사용자 인터럽트는 재발생
+            raise
 
 
 if __name__ == "__main__":
